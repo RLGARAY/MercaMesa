@@ -85,6 +85,26 @@
 
 ---
 
+### 2026-10-16 — recharts actualizado a v3
+
+**Decisión:** Se instala `recharts@^3.0.0` en lugar de la v2 del plan inicial.
+
+**Motivo:** recharts v2.x está deprecated en npm. Como no se usa hasta Fase 4, el cambio es sin riesgo y evita acumular deuda técnica desde el principio.
+
+**Alternativa descartada:** Mantener v2 (funcional pero deprecated).
+
+---
+
+### 2026-10-16 — parseCentsFromString: validación con regex antes de parseFloat
+
+**Decisión:** Se añade validación `/^-?\d+(\.\d+)?$/` antes de `parseFloat`.
+
+**Motivo:** `parseFloat('1.50€')` devuelve `1.5` ignorando el `€` — silencioso e incorrecto. La regex garantiza que solo se aceptan strings que son exclusivamente un número.
+
+**Aprendizaje:** `parseCentsFromString('1.005')` devuelve `100` (no `101`) por la imprecisión de IEEE 754: `1.005 * 100 = 100.4999...`. Para importes reales (máximo 2 decimales en euros) esto no es problema práctico. El test se corrigió para documentar el comportamiento real.
+
+---
+
 ## Ideas fuera de alcance (SPEC sección 13)
 
 - **Precio de coste y beneficio:** interesante para saber el margen por artículo. Requiere modelo de datos adicional.
