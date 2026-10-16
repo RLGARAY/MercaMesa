@@ -182,6 +182,22 @@ Ambos métodos registran siempre un `StockAdjustment` con motivo obligatorio (`r
 
 ---
 
+## Fase 4 — Estadísticas
+
+### 2026-10-16 — Gráficas interactivas con Recharts (RF-E4, RF-E5)
+
+**Decisión:** Utilizar `recharts@3` con `ResponsiveContainer` para las gráficas de ingresos por categoría (`BarChart` horizontal/vertical con paleta de colores de marca) y distribución de ventas por hora del día (`8:00` a `22:00`).
+
+**Motivo:** Recharts es la librería elegida en el SPEC sección 2. Permite tooltips formateados en euros y renderizado SVG responsivo fluido en pantallas de móvil y tablet Android.
+
+---
+
+### 2026-10-16 — Exclusión estricta de ventas anuladas en el dominio (RF-E8)
+
+**Decisión:** En `src/domain/stats.ts`, la función `filterSalesByPeriod` y todas las funciones de cálculo filtran obligatoriamente `sale.status === 'active'`. Las ventas con `status === 'voided'` quedan excluidas del total cobrado, número de ventas, ticket medio, rankings y gráficas por categoría y hora.
+
+---
+
 ## Ideas fuera de alcance (SPEC sección 13)
 
 - **Precio de coste y beneficio:** interesante para saber el margen por artículo. Requiere modelo de datos adicional.

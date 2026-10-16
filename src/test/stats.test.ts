@@ -1,0 +1,251 @@
+import { describe, it, expect } from 'vitest'
+import type { Sale, Category, Item } from '@/types'
+import {
+  filterSalesByPeriod,
+  calculateSummaryMetrics,
+  calculateTopItems,
+  calculateCategoryMetrics,
+  calculateHourlySales,
+  findItemsWithoutSales,
+} from '@/domain/stats'
+
+describe('stats domain logic (RF-E1 a RF-E8)', () => {
+  const catPendientes: Category = { id: 'cat-1', name: 'Pendientes', sortOrder: 0, archived: false }
+  const catLlaveros: Category = { id: 'cat-2', name: 'Llaveros', sortOrder: 1, archived: false }
+  const categories = [catPendientes, catLlaveros]
+
+  const item1: Item = {
+    id: 'item-1',
+    name: 'Pendiente Flor',
+    categoryId: 'cat-1',
+    priceCents: 500,
+    stock: 5,
+    archived: false,
+    createdAt: '2026-10-10T10:00:00.000Z',
+    updatedAt: '2026-10-10T10:00:00.000Z',
+  }
+  const item2: Item = {
+    id: 'item-2',
+    name: 'Llavero Resina',
+    categoryId: 'cat-2',
+    priceCents: 300,
+    stock: 8,
+    archived: false,
+    createdAt: '2026-10-10T10:00:00.000Z',
+    updatedAt: '2026-10-10T10:00:00.000Z',
+  }
+  const item3: Item = {
+    id: 'item-3',
+    name: 'Sin Ventas',
+    categoryId: 'cat-1',
+    priceCents: 800,
+    stock: 2,
+    archived: false,
+    createdAt: '2026-10-10T10:00:00.000Z',
+    updatedAt: '2026-10-10T10:00:00.000Z',
+  }
+
+  // Ventas de prueba
+  // Venta 1: Hoy a las 11:30 - 2 item1 por 1000 céntimos (dto: 100 -> total 900)
+  const sale1: Sale = {
+    id: 'sale-1',
+    createdAt: '2026-10-16T11:30:00.000Z',
+    status: 'active',
+    subtotalCents: 1000,
+    discountCents: 100,
+    totalCents: 900,
+    lines: [
+      {
+        itemId: 'item-1',
+        nameSnapshot: 'Pendiente Flor',
+        categoryIdSnapshot: 'cat-1',
+        unitPriceCents: 500,
+        quantity: 2,
+        lineListCents: 1000,
+        lineDiscountCents: 100,
+        lineNetCents: 900,
+      },
+    ],
+  }
+
+  // Venta 2: Hoy a las 11:45 - 1 item2 por 300 céntimos (sin descuento)
+  const sale2: Sale = {
+    id: 'sale-2',
+    createdAt: '2026-10-16T11:45:00.000Z',
+    status: 'active',
+    subtotalCents: 300,
+    discountCents: 0,
+    totalCents: 300,
+    lines: [
+      {
+        itemId: 'item-2',
+        nameSnapshot: 'Llavero Resina',
+        categoryIdSnapshot: 'cat-2',
+        unitPriceCents: 300,
+        quantity: 1,
+        lineListCents: 300,
+        lineDiscountCents: 0,
+        lineNetCents: 300,
+      },
+    ],
+  }
+
+  // Venta 3: Hace 3 días (2026-10-13) - 1 item1 por 500 céntimos
+  const sale3: Sale = {
+    id: 'sale-3',
+    createdAt: '2026-10-13T16:00:00.000Z',
+    status: 'active',
+    subtotalCents: 500,
+    discountCents: 0,
+    totalCents: 500,
+    lines: [
+      {
+        itemId: 'item-1',
+        nameSnapshot: 'Pendiente Flor',
+        categoryIdSnapshot: 'cat-1',
+        unitPriceCents: 500,
+        quantity: 1,
+        lineListCents: 500,
+        lineDiscountCents: 0,
+        lineNetCents: 500,
+      },
+    ],
+  }
+
+  // Venta 4: Anulada hoy (debe excluirse de todas las estadísticas, RF-E8)
+  const saleVoided: Sale = {
+    id: 'sale-void',
+    createdAt: '2026-10-16T12:00:00.000Z',
+    status: 'voided',
+    voidedAt: '2026-10-16T12:05:00.000Z',
+    subtotalCents: 2000,
+    discountCents: 0,
+    totalCents: 2000,
+    lines: [
+      {
+        itemId: 'item-2',
+        nameSnapshot: 'Llavero Resina',
+        categoryIdSnapshot: 'cat-2',
+        unitPriceCents: 300,
+        quantity: 5,
+        lineListCents: 1500,
+        lineDiscountCents: 0,
+        lineNetCents: 1500,
+      },
+    ],
+  }
+
+  const allSales = [sale1, sale2, sale3, saleVoided]
+  const refDate = new Date('2026-10-16T18:00:00.000Z')
+
+  describe('filterSalesByPeriod (RF-E1, RF-E8)', () => {
+    it('filtro "today" devuelve solo las ventas activas de hoy', () => {
+      const res = filterSalesByPeriod(allSales, { type: 'today' }, refDate)
+      expect(res).toHaveLength(2)
+      expect(res.map(s => s.id)).toEqual(['sale-1', 'sale-2'])
+    })
+
+    it('filtro "last7" devuelve las ventas activas de los últimos 7 días', () => {
+      const res = filterSalesByPeriod(allSales, { type: 'last7' }, refDate)
+      expect(res).toHaveLength(3)
+      expect(res.map(s => s.id)).toEqual(['sale-1', 'sale-2', 'sale-3'])
+    })
+
+    it('filtro "all" devuelve todas las ventas activas excluyendo anuladas', () => {
+      const res = filterSalesByPeriod(allSales, { type: 'all' }, refDate)
+      expect(res).toHaveLength(3)
+      expect(res.some(s => s.status === 'voided')).toBe(false)
+    })
+
+    it('filtro "custom" filtra por rango de fechas YYYY-MM-DD', () => {
+      const res = filterSalesByPeriod(
+        allSales,
+        { type: 'custom', customStart: '2026-10-12', customEnd: '2026-10-14' },
+        refDate,
+      )
+      expect(res).toHaveLength(1)
+      expect(res[0]?.id).toBe('sale-3')
+    })
+  })
+
+  describe('calculateSummaryMetrics (RF-E2, RF-E8)', () => {
+    it('calcula métricas de resumen correctas del conjunto activo', () => {
+      const metrics = calculateSummaryMetrics([sale1, sale2])
+      // Total ingresos: 900 + 300 = 1200
+      expect(metrics.totalRevenueCents).toBe(1200)
+      expect(metrics.salesCount).toBe(2)
+      // Ticket medio: 1200 / 2 = 600
+      expect(metrics.avgTicketCents).toBe(600)
+      // Unidades: 2 + 1 = 3
+      expect(metrics.unitsSold).toBe(3)
+      // Descuentos: 100
+      expect(metrics.totalDiscountCents).toBe(100)
+    })
+
+    it('devuelve ceros si la lista está vacía o solo contiene anuladas', () => {
+      const metrics = calculateSummaryMetrics([saleVoided])
+      expect(metrics.totalRevenueCents).toBe(0)
+      expect(metrics.salesCount).toBe(0)
+      expect(metrics.avgTicketCents).toBe(0)
+      expect(metrics.unitsSold).toBe(0)
+    })
+  })
+
+  describe('calculateTopItems (RF-E3)', () => {
+    it('ordena por unidades vendidas desc y calcula el neto', () => {
+      const ranking = calculateTopItems([sale1, sale2, sale3])
+      // item-1 vendió 2 (en sale1) + 1 (en sale3) = 3 unidades, neto 900 + 500 = 1400
+      // item-2 vendió 1 unidad, neto 300
+      expect(ranking).toHaveLength(2)
+      expect(ranking[0]?.itemId).toBe('item-1')
+      expect(ranking[0]?.unitsSold).toBe(3)
+      expect(ranking[0]?.totalNetCents).toBe(1400)
+
+      expect(ranking[1]?.itemId).toBe('item-2')
+      expect(ranking[1]?.unitsSold).toBe(1)
+      expect(ranking[1]?.totalNetCents).toBe(300)
+    })
+  })
+
+  describe('calculateCategoryMetrics (RF-E4)', () => {
+    it('agrupa por categoría usando lineNetCents y calcula porcentajes', () => {
+      const catMetrics = calculateCategoryMetrics([sale1, sale2], categories)
+      // Total neto = 900 (Pendientes) + 300 (Llaveros) = 1200
+      // Pendientes: 900 / 1200 = 75%
+      // Llaveros: 300 / 1200 = 25%
+      const pend = catMetrics.find(c => c.categoryId === 'cat-1')
+      const llav = catMetrics.find(c => c.categoryId === 'cat-2')
+
+      expect(pend?.unitsSold).toBe(2)
+      expect(pend?.totalNetCents).toBe(900)
+      expect(pend?.percentageOfRevenue).toBe(75)
+
+      expect(llav?.unitsSold).toBe(1)
+      expect(llav?.totalNetCents).toBe(300)
+      expect(llav?.percentageOfRevenue).toBe(25)
+    })
+  })
+
+  describe('calculateHourlySales (RF-E5)', () => {
+    it('cuenta ventas y total en las horas correspondientes', () => {
+      const hourly = calculateHourlySales([sale1, sale2])
+      expect(hourly).toHaveLength(24)
+
+      // Ambas ventas ocurrieron a las 11 UTC / hora local de la prueba
+      const hourSale1 = new Date(sale1.createdAt).getHours()
+      const entry = hourly.find(h => h.hour === hourSale1)
+
+      expect(entry?.salesCount).toBe(2)
+      expect(entry?.totalCents).toBe(1200)
+      expect(entry?.unitsSold).toBe(3)
+    })
+  })
+
+  describe('findItemsWithoutSales (RF-E7)', () => {
+    it('detecta artículos activos sin ventas en el periodo', () => {
+      const withoutSales = findItemsWithoutSales([item1, item2, item3], [sale1, sale2])
+      expect(withoutSales).toHaveLength(1)
+      expect(withoutSales[0]?.id).toBe('item-3')
+    })
+  })
+})
