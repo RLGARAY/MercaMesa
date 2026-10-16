@@ -1,0 +1,29 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Estilos base para táctil y legibilidad al sol (RNF-1) */
+@layer base {
+  html {
+    /* Evita el zoom al hacer focus en inputs en iOS/Android */
+    font-size: 16px;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    @apply bg-white text-gray-900 antialiased;
+    /* Ocupa toda la pantalla incluyendo safe areas (notch, barra de gestos) */
+    min-height: 100dvh;
+  }
+
+  /* Targets táctiles mínimos 48px (RNF-1) */
+  button, [role="button"], input[type="checkbox"], input[type="radio"] {
+    min-height: 48px;
+    min-width: 48px;
+  }
+
+  /* Foco visible accesible (RNF-6) */
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-brand-500;
+  }
+}
