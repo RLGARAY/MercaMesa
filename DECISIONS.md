@@ -158,6 +158,30 @@
 
 ---
 
+## Fase 3 — Corrección y anulación
+
+### 2026-10-16 — Corrección de stock con modo absoluto y relativo (RF-C1)
+
+**Decisión:** En el formulario de ajuste de stock de la pestaña Ajustes se ofrecen dos métodos:
+- **Fijar valor exacto:** el usuario introduce el recuento físico real (ej: 8 piezas) y el sistema calcula automáticamente el `delta = nuevoStock - stockActual`.
+- **Sumar / Restar:** el usuario introduce un número positivo o negativo (ej: `+5` por reposición o `-2` por merma).
+
+Ambos métodos registran siempre un `StockAdjustment` con motivo obligatorio (`restock`, `correction`, `loss`, `other`), nota opcional y actualizan el stock del artículo en una única transacción atómica Dexie.
+
+---
+
+### 2026-10-16 — Subsecciones en la pantalla de Ajustes
+
+**Decisión:** Dividir la pantalla de Ajustes en 4 secciones navegables mediante chips horizontales:
+1. **Inventario:** stock actual, botón de ajuste e historial de movimientos por artículo (RF-C1, RF-C2).
+2. **Ventas:** lista de ventas con filtros de fecha/estado, modal de detalle con snapshots inmutables y botón de anular (RF-C3, RN-6).
+3. **Catálogo:** gestión de categorías y artículos archivados (RF-C4, RF-C5).
+4. **Datos / Test:** diagnóstico de consistencia matemática del stock (RF-C10) y placeholders de sincronización.
+
+**Motivo:** En pantallas móviles, agrupar las herramientas por contexto evita el scroll interminable y hace la app intuitiva para usar en el mercadillo.
+
+---
+
 ## Ideas fuera de alcance (SPEC sección 13)
 
 - **Precio de coste y beneficio:** interesante para saber el margen por artículo. Requiere modelo de datos adicional.

@@ -171,3 +171,48 @@ export async function voidSale(
     }
   })
 }
+
+// ---------------------------------------------------------------------------
+// Consultas de ventas (RF-C3)
+// ---------------------------------------------------------------------------
+
+export interface SalesFilterOptions {
+  status?: 'all' | 'active' | 'voided'
+  date?: string // Formato YYYY-MM-DD
+}
+
+/**
+ * Obtiene la lista de ventas ordenadas por fecha descendente (más recientes primero).
+ * Permite filtrar por estado y por fecha del día (RF-C3).
+ */
+export async function getSales(
+  options: SalesFilterOptions = {},
+  dbInstance: MercaMesaDB = defaultDb,
+): Promise<Sale[]> {
+  let query = dbInstance.sales.toCollection()
+
+  let sales = await query.toArray()
+
+  // Filtro por estado
+  if (options.status && options.status !== 'all') {
+    sales = sales.filter(s => s.status === options.status)
+  }
+
+  // Filtro por fecha (YYYY-MM-DD)
+  if (options.date) {
+    sales = sales.filter(s => s.createdAt.startsWith(options.date!))
+  }
+
+  // Ordenar más recientes primero
+  return sales.sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+}
+
+/**
+ * Obtiene el detalle de una venta por su ID.
+ */
+export async function getSaleById(
+  saleId: ID,
+  dbInstance: MercaMesaDB = defaultDb,
+): Promise<Sale | undefined> {
+  return dbInstance.sales.get(saleId)
+}

@@ -249,6 +249,50 @@ export async function adjustStock(
   })
 }
 
+/**
+ * Fija el stock de un artículo a un valor absoluto exacto (RF-C1 opción b).
+ * Calcula el delta automáticamente y guarda el StockAdjustment en una transacción atómica.
+ * Si targetStock === stock actual y delta === 0, no hace falta ajuste.
+ */
+export async function setStockAbsolute(
+  id: ID,
+  targetStock: number,
+  reason: StockAdjustment['reason'],
+  note?: string,
+  dbInstance: MercaMesaDB = defaultDb,
+): Promise<number> {
+  if (!Number.isInteger(targetStock)) {
+    throw new Error('El stock debe ser un número entero')
+  }
+
+  const item = await dbInstance.items.get(id)
+  if (!item) throw new Error('Artículo no encontrado')
+
+  const delta = targetStock - item.stock
+  if (delta === 0) {
+    return 0 // Sin cambios necesarios
+  }
+
+  await adjustStock(id, delta, reason, note, dbInstance)
+  return delta
+}
+
+/**
+ * Obtiene el historial de ajustes de stock de un artículo (RF-C2).
+ * Ordenado por fecha descendente (más recientes primero).
+ */
+export async function getAdjustmentsByItem(
+  itemId: ID,
+  dbInstance: MercaMesaDB = defaultDb,
+): Promise<StockAdjustment[]> {
+  const list = await dbInstance.adjustments
+    .where('itemId')
+    .equals(itemId)
+    .toArray()
+
+  return list.sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+}
+
 // ---------------------------------------------------------------------------
 // Verificación de consistencia (RF-C10, SPEC sección 4)
 // ---------------------------------------------------------------------------
