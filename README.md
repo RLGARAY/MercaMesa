@@ -105,7 +105,7 @@ Pasos para obtener el Client ID (resumido):
 | 2 | ✅ Completada | Venta con carrito, descuento (3 modos), cobro y deshacer |
 | 3 | ✅ Completada | Corrección de stock, historial de ajustes, ventas y anulación |
 | 4 | ✅ Completada | Estadísticas con Recharts, selector de periodo y rankings |
-| 5 | ⏳ Pendiente | Exportar/importar y copias locales |
+| 5 | ✅ Completada | Exportar/importar y copias locales |
 | 6 | ⏳ Pendiente | PWA y offline completo |
 | 7 | ⏳ Pendiente | Sincronización con Google Drive |
 | 8 | ⏳ Pendiente | Pulido y accesibilidad |

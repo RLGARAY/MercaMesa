@@ -198,6 +198,34 @@ Ambos métodos registran siempre un `StockAdjustment` con motivo obligatorio (`r
 
 ---
 
+## Fase 5 — Exportar/importar y copias locales
+
+### 2026-10-16 — Estructura estándar de BackupPayload y validación estricta (RF-C6, RF-C7, SPEC secciones 7 y 8)
+
+**Decisión:** El payload JSON exportado e importado sigue el formato exacto del SPEC:
+`{ schemaVersion, revision, exportedAt, deviceId, categories, items, sales, adjustments }`.
+Al importar, la función `validateBackupPayload`:
+1. Comprueba la integridad del JSON y que todas las colecciones requeridas sean arrays.
+2. Si `schemaVersion` del archivo > versión que entiende la app: rechaza la importación con mensaje claro al usuario ("El archivo es de una versión más nueva. Actualiza la app.").
+3. Si es válido, muestra un modal de resumen (nº de categorías, artículos, ventas y ajustes) solicitando confirmación antes de aplicar cambios.
+
+---
+
+### 2026-10-16 — Retención máxima de 3 copias en localBackups y prevención de pérdida de datos (SPEC sección 7)
+
+**Decisión:** Antes de cualquier operación destructiva (importar archivo, restaurar snapshot local o vaciar datos), se guarda automáticamente un snapshot del estado completo en la tabla `localBackups` con su motivo (`before-import`, `before-restore`, `before-migration`).
+Se conservan estrictamente las **3 copias más recientes**, purgando automáticamente las más antiguas para proteger la cuota de IndexedDB.
+El usuario puede revisar y restaurar cualquiera de estas copias desde la sección "Datos / Test".
+
+---
+
+### 2026-10-16 — Zona de peligro: doble confirmación tipográfica (RF-C11)
+
+**Decisión:** El borrado total de datos locales requiere un modal en dos pasos que exige al usuario escribir exactamente la palabra "BORRAR" en mayúsculas para activar el botón rojo de borrado definitivo.
+Al ejecutarse: guarda copia de seguridad en `localBackups`, limpia las tablas de negocio, vacía el carrito en `localStorage` y vuelve a inicializar las 3 categorías por defecto (RN-9).
+
+---
+
 ## Ideas fuera de alcance (SPEC sección 13)
 
 - **Precio de coste y beneficio:** interesante para saber el margen por artículo. Requiere modelo de datos adicional.
@@ -205,3 +233,4 @@ Ambos métodos registran siempre un `StockAdjustment` con motivo obligatorio (`r
 - **Tema oscuro:** deseable para uso nocturno. Fase 8 si hay tiempo.
 - **APK con Capacitor:** para distribuir en Google Play. Fase futura.
 - **Reglas de oferta por artículo (3x2):** descartado del alcance actual.
+

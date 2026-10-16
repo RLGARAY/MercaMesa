@@ -4,6 +4,7 @@ import InventorySection from '@/features/settings/InventorySection'
 import SalesHistorySection from '@/features/settings/SalesHistorySection'
 import CatalogSection from '@/features/settings/CatalogSection'
 import ConsistencySection from '@/features/settings/ConsistencySection'
+import DataBackupSection from '@/features/settings/DataBackupSection'
 
 type SettingsTab = 'inventory' | 'sales' | 'catalog' | 'diagnostics'
 
@@ -53,32 +54,7 @@ export default function SettingsPage() {
           <div className="space-y-6">
             <ConsistencySection />
 
-            {/* Placeholders de Fases 5 y 7 */}
-            <div className="p-4 bg-white rounded-2xl border border-gray-200 shadow-sm text-left space-y-3">
-              <h2 className="text-base font-bold text-gray-900">{UI.settings.data}</h2>
-              <p className="text-xs text-gray-500">
-                Copias locales en JSON y sincronización manual con Google Drive.
-              </p>
-              <div className="grid grid-cols-2 gap-2 text-xs">
-                <button
-                  type="button"
-                  disabled
-                  className="p-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-400 font-semibold text-center cursor-not-allowed"
-                >
-                  📁 Exportar JSON (Fase 5)
-                </button>
-                <button
-                  type="button"
-                  disabled
-                  className="p-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-400 font-semibold text-center cursor-not-allowed"
-                >
-                  📥 Importar JSON (Fase 5)
-                </button>
-              </div>
-              <div className="p-3 bg-amber-50/60 border border-amber-200 rounded-xl text-xs text-amber-800">
-                ☁️ Sincronización con Google Drive disponible en <strong>Fase 7</strong>.
-              </div>
-            </div>
+            <DataBackupSection />
           </div>
         )}
       </div>
