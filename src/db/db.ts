@@ -8,7 +8,7 @@
  * - Las escrituras que cambian stock siempre van en una única transacción (RNF-7).
  */
 
-import Dexie, { type Table } from 'dexie'
+import Dexie, { type Table, type DexieOptions } from 'dexie'
 import type {
   Category,
   Item,
@@ -21,7 +21,7 @@ import type {
 /** Versión actual del esquema. Subir al añadir/cambiar tablas o índices. */
 export const SCHEMA_VERSION = 1
 
-class MercaMesaDB extends Dexie {
+export class MercaMesaDB extends Dexie {
   // Dexie infiere el tipo de cada tabla a partir de la declaración
   categories!: Table<Category>
   items!: Table<Item>
@@ -30,8 +30,8 @@ class MercaMesaDB extends Dexie {
   meta!: Table<Meta>
   localBackups!: Table<LocalBackup>
 
-  constructor() {
-    super('MercaMesaDB')
+  constructor(dbName = 'MercaMesaDB', options?: DexieOptions) {
+    super(dbName, options)
 
     /**
      * Versión 1 — esquema inicial.
@@ -66,17 +66,17 @@ export const db = new MercaMesaDB()
  *
  * Debe llamarse una sola vez en main.tsx antes de montar React.
  */
-export async function initDB(): Promise<void> {
+export async function initDB(dbInstance: MercaMesaDB = db): Promise<void> {
   // Solicitar almacenamiento persistente: evita que el navegador borre IndexedDB
   // cuando hay poca memoria. El usuario puede denegar; lo intentamos igualmente.
-  if (navigator.storage?.persist) {
+  if (typeof navigator !== 'undefined' && navigator.storage?.persist) {
     await navigator.storage.persist()
   }
 
   // Crear o recuperar el registro Meta (siempre hay exactamente uno)
-  const existingMeta = await db.meta.count()
+  const existingMeta = await dbInstance.meta.count()
   if (existingMeta === 0) {
-    await db.meta.add({
+    await dbInstance.meta.add({
       schemaVersion: SCHEMA_VERSION,
       deviceId: crypto.randomUUID(),
       lastSyncedRevision: 0,
@@ -84,9 +84,9 @@ export async function initDB(): Promise<void> {
   }
 
   // Categorías iniciales (SPEC sección 5, RN-9 y sección 14)
-  const categoryCount = await db.categories.count()
+  const categoryCount = await dbInstance.categories.count()
   if (categoryCount === 0) {
-    await db.categories.bulkAdd([
+    await dbInstance.categories.bulkAdd([
       { id: crypto.randomUUID(), name: 'Pendientes', sortOrder: 0, archived: false },
       { id: crypto.randomUUID(), name: 'Llaveros',   sortOrder: 1, archived: false },
       { id: crypto.randomUUID(), name: 'Láminas',    sortOrder: 2, archived: false },

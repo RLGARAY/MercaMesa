@@ -105,6 +105,34 @@
 
 ---
 
+## Fase 1 — Artículos y categorías
+
+### 2026-10-16 — Reactividad con dexie-react-hooks (useLiveQuery)
+
+**Decisión:** Utilizar el hook oficial `useLiveQuery` de `dexie-react-hooks` para consultar IndexedDB en los componentes React (`SalePage`, `SettingsPage`).
+
+**Motivo:** Sincroniza automáticamente la UI cada vez que se produce una mutación en IndexedDB (creación, edición, archivado) sin necesidad de recrear listeners manuales ni gestionar estados duplicados. Es la solución estándar y minimalista recomendada por el creador de Dexie.
+
+**Alternativa descartada:** Estado de React local sincronizado a mano con `useEffect` tras cada llamada a servicio (propenso a desincronizaciones si múltiples pantallas o llamadas tocan la BD).
+
+---
+
+### 2026-10-16 — Redimensionado de imagen en Canvas del cliente (RF-A2)
+
+**Decisión:** Procesar el archivo seleccionado por el usuario en el navegador mediante un elemento `<canvas>` invisible que escala proporcionalmente el lado mayor a un máximo de 256 px y exporta como data URL JPEG con calidad 0.7.
+
+**Motivo:** Se cumple fielmente el requisito RF-A2 sin ninguna librería pesada externa de procesamiento de imágenes. Las imágenes quedan con un peso reducido (~20-40 KB) para ser almacenadas directamente en IndexedDB.
+
+---
+
+### 2026-10-16 — Creación rápida de categoría inline (RF-A1)
+
+**Decisión:** En el selector de categorías del formulario de artículos se incluye un botón "+ Nueva categoría..." que despliega un campo de texto inline para crear y asignar una categoría inmediatamente sin salir del formulario.
+
+**Motivo:** Agiliza el alta de artículos en el mercadillo si el vendedor se da cuenta de que no tiene creada la categoría adecuada.
+
+---
+
 ## Ideas fuera de alcance (SPEC sección 13)
 
 - **Precio de coste y beneficio:** interesante para saber el margen por artículo. Requiere modelo de datos adicional.

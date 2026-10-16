@@ -101,7 +101,7 @@ Pasos para obtener el Client ID (resumido):
 | Fase | Estado | Descripción |
 |---|---|---|
 | 0 | ✅ Completada | Esqueleto: proyecto, navegación, esquema DB, money.ts |
-| 1 | ⏳ Pendiente | Artículos y categorías (CRUD) |
+| 1 | ✅ Completada | Artículos y categorías (CRUD con imagen y ajuste de stock) |
 | 2 | ⏳ Pendiente | Venta con carrito y descuento |
 | 3 | ⏳ Pendiente | Corrección y anulación |
 | 4 | ⏳ Pendiente | Estadísticas |
