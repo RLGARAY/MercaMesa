@@ -133,6 +133,31 @@
 
 ---
 
+## Fase 2 — Venta con carrito y descuento
+
+### 2026-10-16 — Algoritmo de reparto de descuento por el método del mayor resto (RN-5)
+
+**Decisión:** Implementar `distributeDiscount` en `src/domain/discount.ts` siguiendo estrictamente el método Hamilton-Hare:
+1. Asignar `floor(exact)` a cada línea.
+2. Calcular los céntimos restantes `discountCents - suma(floors)`.
+3. Ordenar por mayor parte decimal descartada y asignar +1 céntimo.
+4. En caso de empate decimal, desempate por orden original de la línea de venta.
+
+**Invariantes garantizados por tests (incluyendo property-based con 100 ejecuciones aleatorias):**
+- `suma(lineDiscountCents) === discountCents`
+- `0 <= lineDiscountCents <= lineListCents`
+- `suma(lineNetCents) === totalCents`
+
+---
+
+### 2026-10-16 — Deshacer cobro mediante anulación atómica temporal (RF-V6, RN-6)
+
+**Decisión:** Al pulsar "Cobrar", se limpia el carrito inmediatamente y se presenta un toast flotante con la confirmación del total y el botón "Deshacer" durante 7 segundos. Si se pulsa "Deshacer", se ejecuta `voidSale(saleId)` devolviendo el stock de forma atómica en Dexie. Si transcurren los 7 segundos, la venta permanece activa definitivamente.
+
+**Motivo:** Evita bloqueos en la mesa del mercadillo ante toques accidentales y permite corregir un cobro erróneo al instante sin tener que ir a la pestaña de Ajustes.
+
+---
+
 ## Ideas fuera de alcance (SPEC sección 13)
 
 - **Precio de coste y beneficio:** interesante para saber el margen por artículo. Requiere modelo de datos adicional.

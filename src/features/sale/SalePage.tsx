@@ -1,16 +1,35 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '@/db/db'
-import type { Item, ID } from '@/types'
+import type { Item, Sale, ID } from '@/types'
 import { UI } from '@/i18n'
 import { formatCents } from '@/domain/money'
+import { voidSale } from '@/services/saleService'
 import Modal from '@/components/Modal'
 import ItemForm from '@/features/items/ItemForm'
+import CartDrawer from '@/features/sale/CartDrawer'
+import { useCart } from '@/features/sale/useCart'
 
 export default function SalePage() {
   const [selectedCategoryId, setSelectedCategoryId] = useState<ID | 'ALL'>('ALL')
-  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [isItemModalOpen, setIsItemModalOpen] = useState(false)
   const [editingItem, setEditingItem] = useState<Item | null>(null)
+  const [isCartModalOpen, setIsCartModalOpen] = useState(false)
+
+  // Toast de confirmación con Deshacer (RF-V6)
+  const [lastSale, setLastSale] = useState<Sale | null>(null)
+  const [undoToastMessage, setUndoToastMessage] = useState<string | null>(null)
+  const undoTimeoutRef = useRef<number | null>(null)
+
+  // Carrito persistente en localStorage (Decisión 2, RN-1)
+  const {
+    quantities,
+    totalItemsCount,
+    getQuantity,
+    addToCart,
+    removeFromCart,
+    clearCart,
+  } = useCart()
 
   // Consultas reactivas a IndexedDB con useLiveQuery
   const categories = useLiveQuery(
@@ -29,28 +48,100 @@ export default function SalePage() {
     return item.categoryId === selectedCategoryId
   })
 
-  // Obtener nombre de la categoría
+  // Líneas completas del carrito (items con quantity > 0)
+  const cartLines = useMemo(() => {
+    if (!items) return []
+    return Object.entries(quantities)
+      .map(([itemId, quantity]) => {
+        const item = items.find(i => i.id === itemId)
+        if (!item || quantity <= 0) return null
+        return { item, quantity }
+      })
+      .filter((line): line is { item: Item; quantity: number } => line !== null)
+  }, [items, quantities])
+
+  // Subtotal del carrito
+  const cartSubtotalCents = useMemo(() => {
+    return cartLines.reduce((sum, line) => sum + line.item.priceCents * line.quantity, 0)
+  }, [cartLines])
+
+  // Limpiar temporizador al desmontar
+  useEffect(() => {
+    return () => {
+      if (undoTimeoutRef.current) window.clearTimeout(undoTimeoutRef.current)
+    }
+  }, [])
+
+  // Al cobrar con éxito (RF-V6)
+  const handleCheckoutSuccess = (sale: Sale) => {
+    clearCart()
+    setIsCartModalOpen(false)
+    setLastSale(sale)
+    setUndoToastMessage(`Cobrado ${formatCents(sale.totalCents)}`)
+
+    if (undoTimeoutRef.current) window.clearTimeout(undoTimeoutRef.current)
+    undoTimeoutRef.current = window.setTimeout(() => {
+      setLastSale(null)
+      setUndoToastMessage(null)
+    }, 7000)
+  }
+
+  // Deshacer venta recién creada (RF-V6 / RN-6)
+  const handleUndo = async () => {
+    if (!lastSale) return
+    try {
+      await voidSale(lastSale.id)
+      setLastSale(null)
+      setUndoToastMessage('Venta deshecha y stock devuelto')
+      if (undoTimeoutRef.current) window.clearTimeout(undoTimeoutRef.current)
+      undoTimeoutRef.current = window.setTimeout(() => {
+        setUndoToastMessage(null)
+      }, 3000)
+    } catch (err) {
+      alert(err instanceof Error ? err.message : UI.errors.generic)
+    }
+  }
+
   const getCategoryName = (catId: ID): string => {
     return categories?.find(c => c.id === catId)?.name ?? ''
   }
 
   const handleOpenCreate = () => {
     setEditingItem(null)
-    setIsModalOpen(true)
+    setIsItemModalOpen(true)
   }
 
   const handleOpenEdit = (item: Item) => {
     setEditingItem(item)
-    setIsModalOpen(true)
+    setIsItemModalOpen(true)
   }
 
-  const handleCloseModal = () => {
-    setIsModalOpen(false)
+  const handleCloseItemModal = () => {
+    setIsItemModalOpen(false)
     setEditingItem(null)
   }
 
   return (
-    <div className="flex flex-col h-full bg-gray-50">
+    <div className="flex flex-col h-full bg-gray-50 relative">
+      {/* Toast de confirmación con botón Deshacer (RF-V6) */}
+      {undoToastMessage && (
+        <div
+          className="fixed top-3 left-4 right-4 z-50 flex items-center justify-between p-3.5 bg-gray-900 text-white rounded-xl shadow-2xl animate-in fade-in slide-in-from-top duration-200"
+          role="status"
+        >
+          <span className="text-sm font-medium">{undoToastMessage}</span>
+          {lastSale && (
+            <button
+              type="button"
+              onClick={handleUndo}
+              className="ml-3 px-3 py-1.5 bg-brand-500 hover:bg-brand-600 active:bg-brand-700 text-white rounded-lg text-xs font-bold transition-colors min-h-8"
+            >
+              {UI.sale.undo}
+            </button>
+          )}
+        </div>
+      )}
+
       {/* Cabecera superior fija */}
       <header className="sticky top-0 z-10 bg-white border-b border-gray-200 px-4 py-3 shadow-sm">
         <div className="flex items-center justify-between mb-2">
@@ -100,8 +191,8 @@ export default function SalePage() {
         </div>
       </header>
 
-      {/* Lista de artículos (RF-V1) */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-3">
+      {/* Lista de artículos en filas (RF-V1, RF-V3) con padding inferior para la barra de carrito */}
+      <div className={`flex-1 overflow-y-auto p-4 space-y-3 ${totalItemsCount > 0 ? 'pb-24' : 'pb-6'}`}>
         {!items ? (
           <div className="text-center py-12 text-gray-400">{UI.common.loading}</div>
         ) : filteredItems?.length === 0 ? (
@@ -123,14 +214,20 @@ export default function SalePage() {
           </div>
         ) : (
           filteredItems?.map((item) => {
+            const qty = getQuantity(item.id)
             const isLastUnit = item.stock === 1
             const isOutOfStock = item.stock === 0
             const isNegativeStock = item.stock < 0
+            const exceedsStock = qty > item.stock // RF-V8, RN-3
 
             return (
               <div
                 key={item.id}
-                className="flex items-center justify-between p-3 bg-white rounded-xl border border-gray-200 shadow-sm"
+                className={`flex items-center justify-between p-3 bg-white rounded-xl border transition-all ${
+                  qty > 0
+                    ? 'border-brand-300 ring-1 ring-brand-200 shadow-sm'
+                    : 'border-gray-200 shadow-sm'
+                }`}
               >
                 {/* Imagen + Datos */}
                 <div className="flex items-center gap-3 min-w-0 flex-1">
@@ -147,30 +244,57 @@ export default function SalePage() {
                   </div>
 
                   <div className="min-w-0 flex-1 pr-2">
-                    <h3 className="font-semibold text-gray-900 truncate text-sm sm:text-base">
-                      {item.name}
-                    </h3>
+                    <div className="flex items-center gap-1.5">
+                      <h3 className="font-semibold text-gray-900 truncate text-sm sm:text-base">
+                        {item.name}
+                      </h3>
+                      {/* Botón rápido editar */}
+                      <button
+                        type="button"
+                        onClick={() => handleOpenEdit(item)}
+                        aria-label={`Editar ${item.name}`}
+                        className="text-gray-400 hover:text-gray-600 p-1"
+                      >
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          className="w-3.5 h-3.5"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                          strokeWidth={2}
+                          aria-hidden="true"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+                          />
+                        </svg>
+                      </button>
+                    </div>
+
                     <p className="text-xs text-gray-500 truncate">
                       {getCategoryName(item.categoryId)}
                     </p>
-                    <div className="flex items-center gap-2 mt-1">
+
+                    <div className="flex items-center flex-wrap gap-1.5 mt-1">
                       <span className="font-bold text-brand-700 text-sm">
                         {formatCents(item.priceCents)}
                       </span>
 
-                      {/* Chips de estado de stock (Decisión 5: Última unidad con stock = 1) */}
+                      {/* Chips de stock (Decisión 5) */}
                       {isLastUnit && (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-amber-100 text-amber-800">
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-100 text-amber-800">
                           {UI.sale.lastUnit}
                         </span>
                       )}
                       {isOutOfStock && (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-gray-100 text-gray-600">
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-gray-100 text-gray-600">
                           {UI.sale.outOfStock}
                         </span>
                       )}
                       {isNegativeStock && (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold bg-red-100 text-red-700">
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-700">
                           Stock: {item.stock}
                         </span>
                       )}
@@ -179,50 +303,111 @@ export default function SalePage() {
                           Stock: {item.stock}
                         </span>
                       )}
+
+                      {/* Aviso si la cantidad en carrito supera el stock (RF-V8, RN-3) */}
+                      {exceedsStock && (
+                        <span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
+                          {UI.sale.stockWarning}
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>
 
-                {/* Botón de editar (RF-A4) */}
-                <button
-                  type="button"
-                  onClick={() => handleOpenEdit(item)}
-                  aria-label={`Editar ${item.name}`}
-                  className="p-2 text-gray-400 hover:text-gray-600 active:bg-gray-100 rounded-lg min-h-12 min-w-12 flex items-center justify-center transition-colors"
-                >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="w-5 h-5"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                    strokeWidth={2}
-                    aria-hidden="true"
+                {/* Controles táctiles − / + grandes (RF-V1, RF-V3, RNF-1) */}
+                <div className="flex items-center gap-1 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => removeFromCart(item.id)}
+                    disabled={qty === 0}
+                    aria-label={`${UI.common.remove} 1 ${item.name}`}
+                    className={`w-12 h-12 flex items-center justify-center rounded-xl font-bold text-xl transition-colors ${
+                      qty > 0
+                        ? 'bg-gray-100 text-gray-800 hover:bg-gray-200 active:bg-gray-300'
+                        : 'bg-gray-50 text-gray-300 cursor-not-allowed'
+                    }`}
                   >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
-                    />
-                  </svg>
-                </button>
+                    −
+                  </button>
+
+                  <div className="w-8 flex items-center justify-center font-bold text-base text-gray-900">
+                    {qty > 0 ? (
+                      <span className="text-brand-600 font-extrabold">{qty}</span>
+                    ) : (
+                      <span className="text-gray-300">0</span>
+                    )}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => addToCart(item.id)}
+                    aria-label={`${UI.common.add} 1 ${item.name}`}
+                    className="w-12 h-12 flex items-center justify-center bg-brand-500 hover:bg-brand-600 active:bg-brand-700 text-white rounded-xl font-bold text-xl shadow-sm transition-colors"
+                  >
+                    +
+                  </button>
+                </div>
               </div>
             )
           })
         )}
       </div>
 
+      {/* BARRA DE CARRITO FIJA ABAJO (RF-V4) */}
+      {totalItemsCount > 0 && (
+        <div className="fixed bottom-14 left-0 right-0 p-3 z-30 pointer-events-none">
+          <button
+            type="button"
+            onClick={() => setIsCartModalOpen(true)}
+            aria-label={`Ver carrito: ${totalItemsCount} artículos por ${formatCents(cartSubtotalCents)}`}
+            className="w-full max-w-md mx-auto min-h-14 bg-gray-900 hover:bg-black active:scale-[0.99] text-white p-4 rounded-2xl shadow-2xl flex items-center justify-between pointer-events-auto transition-transform"
+          >
+            <div className="flex items-center gap-3">
+              <span className="flex items-center justify-center w-8 h-8 rounded-full bg-brand-500 text-white font-bold text-xs">
+                {totalItemsCount}
+              </span>
+              <span className="font-semibold text-sm">
+                Ver carrito
+              </span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="font-bold text-base text-brand-300">
+                {formatCents(cartSubtotalCents)}
+              </span>
+              <span className="text-gray-400" aria-hidden="true">→</span>
+            </div>
+          </button>
+        </div>
+      )}
+
+      {/* Modal / Resumen del Carrito (RF-V5, RF-V6, RF-V7) */}
+      <Modal
+        title="Carrito de compra"
+        isOpen={isCartModalOpen}
+        onClose={() => setIsCartModalOpen(false)}
+      >
+        <CartDrawer
+          lines={cartLines}
+          onClose={() => setIsCartModalOpen(false)}
+          onAddToCart={addToCart}
+          onRemoveFromCart={removeFromCart}
+          onClearCart={clearCart}
+          onCheckoutSuccess={handleCheckoutSuccess}
+        />
+      </Modal>
+
       {/* Modal para Crear / Editar Artículo */}
       <Modal
         title={editingItem ? UI.items.editItem : UI.items.newItem}
-        isOpen={isModalOpen}
-        onClose={handleCloseModal}
+        isOpen={isItemModalOpen}
+        onClose={handleCloseItemModal}
       >
         <ItemForm
           item={editingItem}
           categories={categories ?? []}
-          onSuccess={handleCloseModal}
-          onCancel={handleCloseModal}
+          onSuccess={handleCloseItemModal}
+          onCancel={handleCloseItemModal}
         />
       </Modal>
     </div>
