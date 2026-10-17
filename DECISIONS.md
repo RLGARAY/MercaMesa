@@ -226,6 +226,31 @@ Al ejecutarse: guarda copia de seguridad en `localBackups`, limpia las tablas de
 
 ---
 
+## Fase 6 — PWA y offline
+
+### 2026-10-17 — Actualización protegida con guardia de venta activa (SPEC sección 8)
+
+**Decisión:** Se configura `vite-plugin-pwa` con `registerType: 'prompt'`. Cuando el Service Worker detecta una versión nueva (`needRefresh`), muestra un aviso accesible superior con botón "Actualizar" y opción "Más tarde".
+Al pulsar "Actualizar", la utilidad `isSaleCartActive()` inspecciona el carrito persistido. Si contiene artículos activos, se intercepta la recarga y se abre un modal de advertencia que informa al usuario para evitar pérdidas involuntarias durante un cobro en la mesa del mercadillo.
+
+---
+
+### 2026-10-17 — Iconos canónicos y compatibilidad Android (maskable)
+
+**Decisión:** Se incorporan los iconos PNG requeridos por el estándar PWA en Android Chrome:
+- `icon-192.png` y `icon-512.png` con `purpose: 'any'`
+- `icon-512-maskable.png` con `purpose: 'maskable'` (fondo `#f97316` a sangre para soportar recortes circulares de Android sin bordes blancos)
+- `apple-touch-icon.png` y `favicon.png` para navegadores adicionales.
+
+---
+
+### 2026-10-17 — Indicador no intrusivo de conectividad offline (RNF-3) y persistencia de storage
+
+**Decisión:** Se monitoriza la conectividad en tiempo real mediante `useNetworkStatus()`. Al pasar a modo sin conexión, se muestra una barra superior discreta indicando que la app continúa operativa al 100% en local.
+Asimismo, en la pestaña "Datos / Test" se refleja el estado de `navigator.storage.persisted()` para asegurar al usuario que sus datos no serán purgados por falta de espacio en el dispositivo.
+
+---
+
 ## Ideas fuera de alcance (SPEC sección 13)
 
 - **Precio de coste y beneficio:** interesante para saber el margen por artículo. Requiere modelo de datos adicional.
@@ -233,4 +258,5 @@ Al ejecutarse: guarda copia de seguridad en `localBackups`, limpia las tablas de
 - **Tema oscuro:** deseable para uso nocturno. Fase 8 si hay tiempo.
 - **APK con Capacitor:** para distribuir en Google Play. Fase futura.
 - **Reglas de oferta por artículo (3x2):** descartado del alcance actual.
+
 

@@ -8,30 +8,44 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      // Fase 6: el service worker se generará con la configuración completa.
-      // Por ahora registramos el plugin con configuración mínima para que el build funcione.
-      registerType: 'prompt',  // RNF-3: nunca recargar sin avisar al usuario
+      registerType: 'prompt', // RNF-3 y SPEC sección 8: nunca recargar en caliente sin permiso
+      includeAssets: ['favicon.png', 'icons/*.png', 'icons/*.svg'],
       manifest: {
-        name: 'MercaMesa',
+        name: 'MercaMesa - Gestión de Mercadillo',
         short_name: 'MercaMesa',
-        description: 'Gestión de mesa de mercadillo',
+        description: 'Gestión ágil de inventario y ventas para puesto de mercadillo (offline-first)',
         theme_color: '#f97316',
         background_color: '#ffffff',
         display: 'standalone',
         orientation: 'portrait',
         lang: 'es',
+        start_url: '/',
+        scope: '/',
         icons: [
           {
             src: '/icons/icon-192.png',
             sizes: '192x192',
             type: 'image/png',
+            purpose: 'any',
           },
           {
             src: '/icons/icon-512.png',
             sizes: '512x512',
             type: 'image/png',
+            purpose: 'any',
+          },
+          {
+            src: '/icons/icon-512-maskable.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'maskable',
           },
         ],
+      },
+      workbox: {
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,webmanifest}'],
+        navigateFallback: '/index.html',
+        cleanupOutdatedCaches: true,
       },
     }),
   ],

@@ -10,12 +10,14 @@ import {
   resetAllData,
   type BackupPayload,
 } from '@/services/backupService'
+import { checkStoragePersistence } from '@/utils/pwaUtils'
 import type { LocalBackup } from '@/types'
 
 export default function DataBackupSection() {
   const [localBackups, setLocalBackups] = useState<LocalBackup[]>([])
   const [loading, setLoading] = useState(false)
   const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+  const [isStoragePersisted, setIsStoragePersisted] = useState<boolean | null>(null)
 
   // Estado para modal de importación
   const [pendingPayload, setPendingPayload] = useState<BackupPayload | null>(null)
@@ -39,6 +41,7 @@ export default function DataBackupSection() {
 
   useEffect(() => {
     loadBackups()
+    checkStoragePersistence().then(setIsStoragePersisted)
   }, [])
 
   // Auto-ocultar mensaje de estado a los 5 segundos
@@ -248,6 +251,28 @@ export default function DataBackupSection() {
           <div>
             <strong>Google Drive (Fase 7):</strong> Próximamente podrás sincronizar tus copias en la nube de Google Drive con un solo toque.
           </div>
+        </div>
+
+        {/* Estado Almacenamiento Persistente (SPEC sección 8) */}
+        <div className="p-3 bg-gray-50 border border-gray-200 rounded-xl text-xs text-gray-700 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <span aria-hidden="true" className="text-sm">💾</span>
+            <div>
+              <span className="font-semibold">Almacenamiento persistente:</span>{' '}
+              {isStoragePersisted
+                ? 'Activo (protegido contra borrado automático del navegador)'
+                : 'Estándar'}
+            </div>
+          </div>
+          <span
+            className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+              isStoragePersisted
+                ? 'bg-emerald-100 text-emerald-800'
+                : 'bg-gray-200 text-gray-700'
+            }`}
+          >
+            {isStoragePersisted ? 'Garantizado' : 'Básico'}
+          </span>
         </div>
       </div>
 

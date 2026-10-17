@@ -3,6 +3,7 @@ import { UI } from '@/i18n'
 import SalePage from '@/features/sale/SalePage'
 import StatsPage from '@/features/stats/StatsPage'
 import SettingsPage from '@/features/settings/SettingsPage'
+import PWAUpdatePrompt from '@/components/PWAUpdatePrompt'
 
 // Iconos SVG inline simples para la barra de navegación.
 // En Fase 8 se puede sustituir por una librería de iconos si hace falta.
@@ -87,6 +88,9 @@ export default function App() {
   return (
     // Contenedor principal: ocupa toda la pantalla con safe areas
     <div className="flex flex-col h-dvh bg-white">
+      {/* Banner de actualización y avisos PWA / offline */}
+      <PWAUpdatePrompt />
+
       {/* Contenido de la pestaña activa — ocupa el espacio restante */}
       <main className="flex-1 overflow-y-auto">
         {activeTab === 'sale'     && <SalePage />}
