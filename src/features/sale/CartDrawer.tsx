@@ -16,7 +16,7 @@ interface CartLine {
 
 interface CartDrawerProps {
   lines: CartLine[]
-  onClose: () => void
+  onClose?: () => void
   onAddToCart: (itemId: string) => void
   onRemoveFromCart: (itemId: string) => void
   onClearCart: () => void
@@ -190,7 +190,7 @@ export default function CartDrawer({
                     type="button"
                     onClick={() => onRemoveFromCart(item.id)}
                     aria-label={`${UI.common.remove} 1 ${item.name}`}
-                    className="w-10 h-10 flex items-center justify-center bg-gray-100 hover:bg-gray-200 active:bg-gray-300 text-gray-800 rounded-lg font-bold text-lg"
+                    className="w-12 h-12 min-w-[48px] min-h-[48px] flex items-center justify-center bg-gray-100 hover:bg-gray-200 active:bg-gray-300 text-gray-800 rounded-xl font-bold text-xl transition-colors"
                   >
                     −
                   </button>
@@ -201,7 +201,7 @@ export default function CartDrawer({
                     type="button"
                     onClick={() => onAddToCart(item.id)}
                     aria-label={`${UI.common.add} 1 ${item.name}`}
-                    className="w-10 h-10 flex items-center justify-center bg-gray-100 hover:bg-gray-200 active:bg-gray-300 text-gray-800 rounded-lg font-bold text-lg"
+                    className="w-12 h-12 min-w-[48px] min-h-[48px] flex items-center justify-center bg-gray-100 hover:bg-gray-200 active:bg-gray-300 text-gray-800 rounded-xl font-bold text-xl transition-colors"
                   >
                     +
                   </button>
@@ -341,7 +341,7 @@ export default function CartDrawer({
               onClick={() => {
                 onClearCart()
                 setShowClearConfirm(false)
-                onClose()
+                onClose?.()
               }}
               className="px-3 py-1.5 bg-red-600 text-white rounded-lg text-xs font-bold active:bg-red-700 min-h-8"
             >
@@ -360,17 +360,19 @@ export default function CartDrawer({
             <button
               type="button"
               onClick={() => setShowClearConfirm(true)}
-              className="text-xs text-red-600 hover:text-red-700 font-semibold p-2"
+              className="text-xs text-red-600 hover:text-red-700 font-semibold p-2 min-h-[44px]"
             >
               {UI.sale.clearCart}
             </button>
-            <button
-              type="button"
-              onClick={onClose}
-              className="text-xs text-gray-500 hover:text-gray-700 font-medium p-2"
-            >
-              {UI.common.close}
-            </button>
+            {onClose && (
+              <button
+                type="button"
+                onClick={onClose}
+                className="text-xs text-gray-500 hover:text-gray-700 font-medium p-2 min-h-[44px]"
+              >
+                {UI.common.close}
+              </button>
+            )}
           </div>
         )}
       </div>

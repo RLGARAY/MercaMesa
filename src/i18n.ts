@@ -18,6 +18,7 @@ export const UI = {
   sale: {
     title: 'Venta',
     allCategories: 'Todas',
+    cart: 'Carrito',
     cartEmpty: 'El carrito está vacío',
     cartBar: (count: number, total: string) => `${count} art. · ${total}`,
     checkOut: 'Cobrar',

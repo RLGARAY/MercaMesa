@@ -279,6 +279,28 @@ El indicador se muestra de forma permanente en la cabecera compacta de `App.tsx`
 
 ---
 
+## Fase 8 — Pulido y accesibilidad
+
+### 2026-10-17 — Disposición paralela responsiva en tablet / pantalla ancha (RNF-4)
+
+**Decisión:** En dispositivos con pantalla ancha o tablets en posición horizontal (`lg:`), `SalePage` muestra la lista de artículos y el carrito de la compra en paralelo en dos columnas.
+En pantallas móviles verticales, se mantiene la barra flotante inferior y el drawer modal para optimizar el espacio.
+
+---
+
+### 2026-10-17 — Cumplimiento de objetivos táctiles ≥ 48 px y accesibilidad (RNF-1, RNF-6)
+
+**Decisión:** Se unifican todos los botones de acción principal, incremento/decremento (`−` / `+`), gestión de categorías y navegación con dimensiones mínimas de 48x48 px (`min-w-[48px] min-h-[48px]`).
+Se refuerzan los anillos de foco visibles (`focus-visible:ring-2 focus-visible:ring-brand-500`) y las etiquetas `aria-label` para lectura por voz.
+
+---
+
+### 2026-10-17 — Resiliencia ante errores con ErrorBoundary (RNF-7)
+
+**Decisión:** Se implementa un `ErrorBoundary` en la raíz de la aplicación que previene pantallas en blanco ante cualquier excepción no controlada en la UI, manteniendo la integridad de los datos locales de IndexedDB y ofreciendo opciones de reintento y recarga rápida.
+
+---
+
 ## Ideas fuera de alcance (SPEC sección 13)
 
 - **Precio de coste y beneficio:** interesante para saber el margen por artículo. Requiere modelo de datos adicional.
@@ -286,6 +308,7 @@ El indicador se muestra de forma permanente en la cabecera compacta de `App.tsx`
 - **Tema oscuro:** deseable para uso nocturno. Fase 8 si hay tiempo.
 - **APK con Capacitor:** para distribuir en Google Play. Fase futura.
 - **Reglas de oferta por artículo (3x2):** descartado del alcance actual.
+
 
 
 

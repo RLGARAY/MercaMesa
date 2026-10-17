@@ -126,7 +126,7 @@ La sincronización con Google Drive funciona en el navegador mediante **Google I
 | 5 | ✅ Completada | Exportar/importar y copias locales |
 | 6 | ✅ Completada | PWA y offline completo |
 | 7 | ✅ Completada | Sincronización con Google Drive (OAuth, subida, restore y conflicto) |
-| 8 | ⏳ Pendiente | Pulido y accesibilidad |
+| 8 | ✅ Completada | Pulido y accesibilidad (responsive tablet, touch ≥48px, Error Boundary) |
 
 ## Reglas de datos importantes
 

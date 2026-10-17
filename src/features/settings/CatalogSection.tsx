@@ -171,7 +171,7 @@ export default function CatalogSection() {
                     disabled={idx === 0}
                     onClick={() => handleMoveCategory(idx, 'up')}
                     aria-label={`${UI.settings.moveUp} ${cat.name}`}
-                    className="w-10 h-10 flex items-center justify-center text-gray-400 hover:text-gray-700 disabled:opacity-20 rounded-lg active:bg-gray-100"
+                    className="w-12 h-12 min-w-[48px] min-h-[48px] flex items-center justify-center text-gray-500 hover:text-gray-900 disabled:opacity-20 rounded-xl active:bg-gray-100 transition-colors"
                   >
                     ↑
                   </button>
@@ -180,7 +180,7 @@ export default function CatalogSection() {
                     disabled={idx === activeCategories.length - 1}
                     onClick={() => handleMoveCategory(idx, 'down')}
                     aria-label={`${UI.settings.moveDown} ${cat.name}`}
-                    className="w-10 h-10 flex items-center justify-center text-gray-400 hover:text-gray-700 disabled:opacity-20 rounded-lg active:bg-gray-100"
+                    className="w-12 h-12 min-w-[48px] min-h-[48px] flex items-center justify-center text-gray-500 hover:text-gray-900 disabled:opacity-20 rounded-xl active:bg-gray-100 transition-colors"
                   >
                     ↓
                   </button>
@@ -193,7 +193,7 @@ export default function CatalogSection() {
                       setCategoryError(null)
                     }}
                     aria-label={`Renombrar ${cat.name}`}
-                    className="w-10 h-10 flex items-center justify-center text-gray-500 hover:text-brand-600 rounded-lg active:bg-gray-100"
+                    className="w-12 h-12 min-w-[48px] min-h-[48px] flex items-center justify-center text-gray-500 hover:text-brand-600 rounded-xl active:bg-gray-100 transition-colors"
                   >
                     ✏️
                   </button>
@@ -203,7 +203,7 @@ export default function CatalogSection() {
                     onClick={() => handleArchiveCategory(cat)}
                     aria-label={`Archivar ${cat.name}`}
                     title={itemCount > 0 ? 'No se puede archivar con artículos activos' : undefined}
-                    className="w-10 h-10 flex items-center justify-center text-gray-400 hover:text-red-600 rounded-lg active:bg-gray-100 text-xs font-semibold"
+                    className="w-12 h-12 min-w-[48px] min-h-[48px] flex items-center justify-center text-gray-400 hover:text-rose-600 rounded-xl active:bg-gray-100 text-xs font-semibold transition-colors"
                   >
                     🗑️
                   </button>

@@ -130,10 +130,10 @@ export default function App() {
             aria-label={label}
             aria-current={activeTab === id ? 'page' : undefined}
             className={`
-              flex-1 flex flex-col items-center justify-center gap-1 py-2
-              text-xs font-medium transition-colors
+              flex-1 flex flex-col items-center justify-center gap-1 py-2 min-h-[56px]
+              text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500
               ${activeTab === id
-                ? 'text-brand-600'
+                ? 'text-brand-600 font-bold'
                 : 'text-gray-500 hover:text-gray-700'
               }
             `}
