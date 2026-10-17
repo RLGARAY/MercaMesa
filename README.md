@@ -84,17 +84,35 @@ src/
 
 ## Configuración de Google Drive (Fase 7)
 
-> Esta sección se completa en la Fase 7. Por ahora, el campo `VITE_GOOGLE_CLIENT_ID`
-> en tu archivo `.env` puede dejarse como está.
+La sincronización con Google Drive funciona en el navegador mediante **Google Identity Services** (flujo de token sin backend propio). Para habilitarla en tu puesto:
 
-Pasos para obtener el Client ID (resumido):
-1. Ve a [Google Cloud Console](https://console.cloud.google.com/)
-2. Crea un proyecto nuevo o usa uno existente
-3. Activa la API de Google Drive
-4. Ve a "APIs y servicios → Credenciales → Crear credencial → ID de cliente OAuth 2.0"
-5. Tipo: **Aplicación web**
-6. Añade los orígenes autorizados: `http://localhost:5173` (desarrollo) y tu URL de producción
-7. Copia el Client ID y pégalo en `.env` como `VITE_GOOGLE_CLIENT_ID=...`
+1. Entra en [Google Cloud Console](https://console.cloud.google.com/) con tu cuenta de Google.
+2. Crea un proyecto nuevo (ej. `MercaMesa`) o selecciona uno existente.
+3. En el menú lateral, ve a **APIs y servicios → Biblioteca**, busca **Google Drive API** y pulsa **Habilitar**.
+4. Ve a **APIs y servicios → Pantalla de consentimiento de OAuth**:
+   - Selecciona **Usuarios externos** y pulsa **Crear**.
+   - Completa el nombre de la app (`MercaMesa`) y tu correo de contacto.
+   - En la sección **Usuarios de prueba**, añade tu propia dirección de Gmail para poder iniciar sesión mientras la app esté en modo prueba.
+5. Ve a **APIs y servicios → Credenciales → Crear credenciales → ID de cliente de OAuth**:
+   - Tipo de aplicación: **Aplicación web**.
+   - Nombre: `MercaMesa Web Client`.
+   - **Orígenes autorizados de JavaScript**: añade las URLs donde ejecutas la app:
+     - `http://localhost:5173` (servidor de desarrollo `npm run dev`)
+     - `http://localhost:4173` (previsualización `npm run preview`)
+     - Tu dominio de producción (si despliegas en GitHub Pages, Vercel, Netlify, etc.)
+   - Pulsa **Crear**.
+6. Copia el **ID de cliente** generado (tiene la forma `...apps.googleusercontent.com`).
+7. En la raíz de este proyecto, crea o edita tu archivo `.env`:
+   ```bash
+   cp .env.example .env
+   ```
+   Y pega tu ID:
+   ```env
+   VITE_GOOGLE_CLIENT_ID=tu-id-de-cliente.apps.googleusercontent.com
+   ```
+8. Reinicia el servidor de desarrollo (`npm run dev`). En la pestaña **Ajustes → Datos / Test** verás habilitados los botones **Actualizar a Drive** y **Restaurar desde Drive**.
+
+> **Nota para el usuario:** Debes probar el inicio de sesión real en tu navegador con tu Client ID configurado.
 
 ## Fases de desarrollo
 
@@ -107,7 +125,7 @@ Pasos para obtener el Client ID (resumido):
 | 4 | ✅ Completada | Estadísticas con Recharts, selector de periodo y rankings |
 | 5 | ✅ Completada | Exportar/importar y copias locales |
 | 6 | ✅ Completada | PWA y offline completo |
-| 7 | ⏳ Pendiente | Sincronización con Google Drive |
+| 7 | ✅ Completada | Sincronización con Google Drive (OAuth, subida, restore y conflicto) |
 | 8 | ⏳ Pendiente | Pulido y accesibilidad |
 
 ## Reglas de datos importantes

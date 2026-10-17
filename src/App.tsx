@@ -4,6 +4,7 @@ import SalePage from '@/features/sale/SalePage'
 import StatsPage from '@/features/stats/StatsPage'
 import SettingsPage from '@/features/settings/SettingsPage'
 import PWAUpdatePrompt from '@/components/PWAUpdatePrompt'
+import { useSyncInfo } from '@/hooks/useSyncInfo'
 
 // Iconos SVG inline simples para la barra de navegación.
 // En Fase 8 se puede sustituir por una librería de iconos si hace falta.
@@ -78,6 +79,7 @@ type Tab = 'sale' | 'stats' | 'settings'
  */
 export default function App() {
   const [activeTab, setActiveTab] = useState<Tab>('sale')
+  const { formattedRelative, lastSyncedRevision } = useSyncInfo()
 
   const tabs: { id: Tab; label: string; Icon: typeof IconCart }[] = [
     { id: 'sale',     label: UI.nav.sale,     Icon: IconCart },
@@ -90,6 +92,24 @@ export default function App() {
     <div className="flex flex-col h-dvh bg-white">
       {/* Banner de actualización y avisos PWA / offline */}
       <PWAUpdatePrompt />
+
+      {/* Cabecera compacta con indicador de última sincronización (RF-C9) */}
+      <header className="flex items-center justify-between px-4 py-1.5 bg-gray-50/80 border-b border-gray-200 text-[11px] text-gray-500 shrink-0">
+        <span className="font-bold text-gray-700 tracking-tight flex items-center gap-1.5">
+          <span>🛒</span>
+          <span>MercaMesa</span>
+        </span>
+        <div
+          className="flex items-center gap-1.5"
+          title={`Última sincronización con Google Drive: ${formattedRelative}`}
+        >
+          <span aria-hidden="true" className="text-xs">☁️</span>
+          <span>{formattedRelative}</span>
+          {lastSyncedRevision > 0 && (
+            <span className="text-[10px] text-gray-400">· r{lastSyncedRevision}</span>
+          )}
+        </div>
+      </header>
 
       {/* Contenido de la pestaña activa — ocupa el espacio restante */}
       <main className="flex-1 overflow-y-auto">

@@ -11,6 +11,15 @@ import {
   type BackupPayload,
 } from '@/services/backupService'
 import { checkStoragePersistence } from '@/utils/pwaUtils'
+import { GoogleDriveClient } from '@/services/drive/driveClient'
+import { requestGoogleAccessToken, hasGoogleClientId } from '@/services/drive/auth'
+import {
+  uploadToDrive,
+  fetchDriveRestorePreview,
+  applyDriveRestore,
+  type DriveRestorePreview,
+} from '@/services/drive/driveSyncService'
+import { useSyncInfo } from '@/hooks/useSyncInfo'
 import type { LocalBackup } from '@/types'
 
 export default function DataBackupSection() {
@@ -19,12 +28,25 @@ export default function DataBackupSection() {
   const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const [isStoragePersisted, setIsStoragePersisted] = useState<boolean | null>(null)
 
-  // Estado para modal de importación
+  // Información reactiva de sincronización con Google Drive
+  const { lastSyncedRevision, formattedRelative, refreshSyncInfo } = useSyncInfo()
+
+  // Estado para modal de importación desde archivo
   const [pendingPayload, setPendingPayload] = useState<BackupPayload | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // Estado para modal de restauración local
+  // Estado para modal de restauración de copia local
   const [backupToRestore, setBackupToRestore] = useState<LocalBackup | null>(null)
+
+  // Estado para conflicto de revisión en Drive
+  const [conflictData, setConflictData] = useState<{
+    remoteRevision: number
+    localRevision: number
+    remoteFileId: string
+  } | null>(null)
+
+  // Estado para previsualización de restauración desde Drive
+  const [driveRestorePreview, setDriveRestorePreview] = useState<DriveRestorePreview | null>(null)
 
   // Estado para modal de borrado total (zona de peligro)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
@@ -51,7 +73,7 @@ export default function DataBackupSection() {
     return () => clearTimeout(timer)
   }, [statusMessage])
 
-  // 1. Exportar
+  // 1. Exportar a archivo local
   const handleExport = async () => {
     try {
       setLoading(true)
@@ -70,7 +92,7 @@ export default function DataBackupSection() {
     }
   }
 
-  // 2. Selección de archivo para importar
+  // 2. Selección de archivo JSON para importar
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
@@ -89,7 +111,6 @@ export default function DataBackupSection() {
         return
       }
 
-      // Válido: abrir modal de confirmación con el resumen
       setPendingPayload(result.payload)
     }
 
@@ -104,7 +125,7 @@ export default function DataBackupSection() {
     reader.readAsText(file)
   }
 
-  // Confirmar importación
+  // Confirmar importación desde archivo local
   const handleConfirmImport = async () => {
     if (!pendingPayload) return
     try {
@@ -113,6 +134,7 @@ export default function DataBackupSection() {
       setPendingPayload(null)
       if (fileInputRef.current) fileInputRef.current.value = ''
       await loadBackups()
+      await refreshSyncInfo()
       setStatusMessage({
         type: 'success',
         text: UI.settings.importSuccess,
@@ -135,6 +157,7 @@ export default function DataBackupSection() {
       await restoreLocalBackup(backupToRestore.id)
       setBackupToRestore(null)
       await loadBackups()
+      await refreshSyncInfo()
       setStatusMessage({
         type: 'success',
         text: UI.settings.importSuccess,
@@ -149,7 +172,98 @@ export default function DataBackupSection() {
     }
   }
 
-  // 4. Confirmar reseteo total
+  // 4. Sincronización con Google Drive: Subir datos (RF-C8)
+  const handleDriveUpload = async (forceOverwrite = false) => {
+    try {
+      if (!hasGoogleClientId()) {
+        setStatusMessage({
+          type: 'error',
+          text: 'Falta configurar VITE_GOOGLE_CLIENT_ID en el archivo .env (ver README).',
+        })
+        return
+      }
+
+      setLoading(true)
+      const token = await requestGoogleAccessToken()
+      const client = new GoogleDriveClient(token)
+      const result = await uploadToDrive(client, { forceOverwrite })
+
+      if (result.outcome === 'conflict') {
+        setConflictData({
+          remoteRevision: result.remoteRevision,
+          localRevision: result.localRevision,
+          remoteFileId: result.remoteFileId,
+        })
+        return
+      }
+
+      setConflictData(null)
+      await refreshSyncInfo()
+      setStatusMessage({
+        type: 'success',
+        text: `${UI.settings.driveUploadSuccess} (Revisión ${result.revision})`,
+      })
+    } catch (err) {
+      setStatusMessage({
+        type: 'error',
+        text: err instanceof Error ? err.message : UI.errors.driveError,
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Sincronización con Google Drive: Previsualizar restauración (RF-C8)
+  const handleDriveRestorePreview = async () => {
+    try {
+      if (!hasGoogleClientId()) {
+        setStatusMessage({
+          type: 'error',
+          text: 'Falta configurar VITE_GOOGLE_CLIENT_ID en el archivo .env (ver README).',
+        })
+        return
+      }
+
+      setLoading(true)
+      const token = await requestGoogleAccessToken()
+      const client = new GoogleDriveClient(token)
+      const preview = await fetchDriveRestorePreview(client)
+      setDriveRestorePreview(preview)
+      setConflictData(null)
+    } catch (err) {
+      setStatusMessage({
+        type: 'error',
+        text: err instanceof Error ? err.message : UI.errors.driveError,
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Sincronización con Google Drive: Confirmar restauración
+  const handleConfirmDriveRestore = async () => {
+    if (!driveRestorePreview) return
+    try {
+      setLoading(true)
+      await applyDriveRestore(driveRestorePreview)
+      setDriveRestorePreview(null)
+      await refreshSyncInfo()
+      await loadBackups()
+      setStatusMessage({
+        type: 'success',
+        text: UI.settings.driveRestoreSuccess,
+      })
+    } catch (err) {
+      setStatusMessage({
+        type: 'error',
+        text: err instanceof Error ? err.message : UI.errors.generic,
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // 5. Confirmar reseteo total (zona de peligro RF-C11)
   const handleConfirmDeleteAll = async () => {
     if (deleteConfirmationText.trim().toUpperCase() !== 'BORRAR') return
     try {
@@ -158,6 +272,7 @@ export default function DataBackupSection() {
       setShowDeleteModal(false)
       setDeleteConfirmationText('')
       await loadBackups()
+      await refreshSyncInfo()
       setStatusMessage({
         type: 'success',
         text: UI.settings.resetSuccess,
@@ -202,12 +317,12 @@ export default function DataBackupSection() {
         </div>
       )}
 
-      {/* Bloque principal: Exportar e Importar JSON */}
+      {/* Bloque principal: Copias y Google Drive */}
       <div className="p-4 bg-white rounded-2xl border border-gray-200 shadow-sm space-y-4">
         <div>
           <h2 className="text-base font-bold text-gray-900">{UI.settings.data}</h2>
           <p className="text-xs text-gray-500 mt-1">
-            Guarda tus datos en un archivo JSON en tu dispositivo o recupera una copia anterior.
+            Exporta copias locales en tu dispositivo o sincroniza tu puesto con Google Drive.
           </p>
         </div>
 
@@ -221,8 +336,8 @@ export default function DataBackupSection() {
           aria-label="Seleccionar archivo JSON para importar"
         />
 
+        {/* Botones de archivo local (RF-C6, RF-C7) */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {/* Botón Exportar */}
           <button
             type="button"
             onClick={handleExport}
@@ -233,7 +348,6 @@ export default function DataBackupSection() {
             <span>{UI.settings.export} (JSON)</span>
           </button>
 
-          {/* Botón Importar */}
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
@@ -245,11 +359,50 @@ export default function DataBackupSection() {
           </button>
         </div>
 
-        {/* Info Google Drive */}
-        <div className="p-3 bg-amber-50/70 border border-amber-200 rounded-xl text-xs text-amber-900 flex items-start gap-2">
-          <span className="text-base leading-none" aria-hidden="true">☁️</span>
-          <div>
-            <strong>Google Drive (Fase 7):</strong> Próximamente podrás sincronizar tus copias en la nube de Google Drive con un solo toque.
+        {/* Bloque Google Drive (SPEC sección 7, RF-C8, RF-C9) */}
+        <div className="p-4 bg-sky-50/70 border border-sky-200 rounded-2xl space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span aria-hidden="true" className="text-xl">☁️</span>
+              <div>
+                <h3 className="text-sm font-bold text-sky-950">Google Drive</h3>
+                <p className="text-[11px] text-sky-700">
+                  {UI.settings.lastSync}: <strong>{formattedRelative}</strong>
+                  {lastSyncedRevision > 0 && ` (Revisión ${lastSyncedRevision})`}
+                </p>
+              </div>
+            </div>
+            {!hasGoogleClientId() && (
+              <span className="text-[10px] font-semibold bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full">
+                Sin configurar
+              </span>
+            )}
+          </div>
+
+          {!hasGoogleClientId() && (
+            <p className="text-xs text-amber-900 bg-amber-50 p-2.5 rounded-xl border border-amber-200">
+              ℹ️ Para sincronizar con Drive, añade <code>VITE_GOOGLE_CLIENT_ID</code> en tu archivo <code>.env</code>. Consulta el README para los pasos en Google Cloud.
+            </p>
+          )}
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            <button
+              type="button"
+              onClick={() => handleDriveUpload(false)}
+              disabled={loading}
+              className="flex items-center justify-center gap-2 p-3 bg-sky-600 hover:bg-sky-700 text-white font-semibold rounded-xl text-xs transition-colors min-h-[48px] shadow-sm disabled:opacity-50"
+            >
+              <span>☁️ {UI.settings.driveUpload}</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleDriveRestorePreview}
+              disabled={loading}
+              className="flex items-center justify-center gap-2 p-3 bg-white hover:bg-sky-50 text-sky-800 border border-sky-300 font-semibold rounded-xl text-xs transition-colors min-h-[48px] shadow-sm disabled:opacity-50"
+            >
+              <span>📥 {UI.settings.driveRestore}</span>
+            </button>
           </div>
         </div>
 
@@ -342,7 +495,7 @@ export default function DataBackupSection() {
         </button>
       </div>
 
-      {/* Modal: Confirmar Importación (RF-C7) */}
+      {/* Modal: Confirmar Importación desde archivo (RF-C7) */}
       <Modal
         title="Confirmar importación de datos"
         isOpen={Boolean(pendingPayload)}
@@ -431,6 +584,102 @@ export default function DataBackupSection() {
                 className="flex-1 py-3 px-4 bg-brand-600 hover:bg-brand-700 text-white font-semibold rounded-xl text-xs min-h-[48px]"
               >
                 {loading ? UI.common.loading : UI.settings.restoreBackup}
+              </button>
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* Modal: Conflicto con Google Drive (SPEC sección 7) */}
+      <Modal
+        title={UI.settings.driveConflictTitle}
+        isOpen={Boolean(conflictData)}
+        onClose={() => setConflictData(null)}
+      >
+        {conflictData && (
+          <div className="p-4 space-y-4 text-left">
+            <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900 space-y-1.5">
+              <p className="font-bold">⚠️ {UI.settings.driveConflictDesc}</p>
+              <p>
+                Los datos en Google Drive fueron actualizados desde otro dispositivo (Revisión{' '}
+                <strong>{conflictData.remoteRevision}</strong>), mientras que este dispositivo tiene la Revisión{' '}
+                <strong>{conflictData.localRevision}</strong>.
+              </p>
+              <p>Elige cómo deseas proceder:</p>
+            </div>
+
+            <div className="flex flex-col gap-2 pt-2">
+              <button
+                type="button"
+                onClick={handleDriveRestorePreview}
+                disabled={loading}
+                className="w-full py-3 px-4 bg-sky-600 hover:bg-sky-700 text-white font-semibold rounded-xl text-xs min-h-[48px]"
+              >
+                📥 {UI.settings.driveRestoreFirst} (Recomendado)
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleDriveUpload(true)}
+                disabled={loading}
+                className="w-full py-3 px-4 border border-rose-300 bg-rose-50 hover:bg-rose-100 text-rose-800 font-semibold rounded-xl text-xs min-h-[48px]"
+              >
+                ⚠️ {UI.settings.driveReplaceRemote}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setConflictData(null)}
+                disabled={loading}
+                className="w-full py-2.5 px-4 text-gray-500 font-medium text-xs hover:text-gray-700 min-h-[40px]"
+              >
+                {UI.common.cancel}
+              </button>
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* Modal: Confirmar Restauración desde Google Drive (SPEC sección 7) */}
+      <Modal
+        title="Restaurar desde Google Drive"
+        isOpen={Boolean(driveRestorePreview)}
+        onClose={() => setDriveRestorePreview(null)}
+      >
+        {driveRestorePreview && (
+          <div className="p-4 space-y-4 text-left">
+            <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900">
+              ⚠️ <strong>Atención:</strong> Esta acción sustituirá todos los datos locales actuales por la copia de Google Drive. Antes de reemplazar, se guardará automáticamente una copia en el historial local.
+            </div>
+
+            <div className="bg-gray-50 p-3 rounded-xl border border-gray-200 text-xs space-y-1.5 text-gray-700">
+              <div className="font-semibold text-gray-900 pb-1 border-b border-gray-200">
+                Resumen de la copia en Drive:
+              </div>
+              <div>📅 <strong>Fecha exportación:</strong> {new Date(driveRestorePreview.payload.exportedAt).toLocaleString('es-ES')}</div>
+              <div>🔢 <strong>Revisión remota:</strong> Rev. {driveRestorePreview.remoteMeta.revision}</div>
+              <div>🏷️ <strong>Categorías:</strong> {driveRestorePreview.summary.categoriesCount}</div>
+              <div>📦 <strong>Artículos:</strong> {driveRestorePreview.summary.itemsCount}</div>
+              <div>🧾 <strong>Ventas registradas:</strong> {driveRestorePreview.summary.salesCount}</div>
+              <div>🔧 <strong>Ajustes de inventario:</strong> {driveRestorePreview.summary.adjustmentsCount}</div>
+            </div>
+
+            <div className="flex gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setDriveRestorePreview(null)}
+                disabled={loading}
+                className="flex-1 py-3 px-4 border border-gray-300 rounded-xl text-gray-700 font-semibold text-xs hover:bg-gray-50 min-h-[48px]"
+              >
+                {UI.common.cancel}
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmDriveRestore}
+                disabled={loading}
+                className="flex-1 py-3 px-4 bg-sky-600 hover:bg-sky-700 text-white font-semibold rounded-xl text-xs min-h-[48px]"
+              >
+                {loading ? UI.common.loading : 'Restaurar datos'}
               </button>
             </div>
           </div>

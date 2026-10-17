@@ -251,6 +251,34 @@ Asimismo, en la pestaña "Datos / Test" se refleja el estado de `navigator.stora
 
 ---
 
+## Fase 7 — Sincronización con Google Drive
+
+### 2026-10-17 — Aislamiento del cliente tras la interfaz DriveClient (SPEC sección 7)
+
+**Decisión:** El cliente HTTP de Google Drive se aísla completamente tras la interfaz `DriveClient`.
+`GoogleDriveClient` implementa las llamadas REST v3 multipart (`POST`, `PATCH`, `GET alt=media`) con scope `drive.file` usando el token obtenido en navegador con Google Identity Services (`initTokenClient`).
+Para los tests automatizados, se utiliza `InMemoryDriveClient`, permitiendo verificar todo el flujo de sincronización, actualización de metadatos y resolución de conflictos sin conexión ni credenciales reales.
+
+---
+
+### 2026-10-17 — Resolución de conflicto de revisión (RF-C8, SPEC sección 7)
+
+**Decisión:** Al pulsar "Actualizar a Drive", se lee el metadato `appProperties.revision` del archivo remoto. Si `remoteRevision > localRevision`:
+- Se intercepta la operación y se muestra el modal de conflicto.
+- El usuario puede:
+  1. **Cancelar:** no se altera ningún dato.
+  2. **Reemplazar datos de Drive:** fuerza la subida calculando `revision = max(remoteRevision, localRevision) + 1`.
+  3. **Restaurar primero desde Drive:** descarga la copia de Drive, muestra el resumen previo y la sustituye en local (guardando antes una copia de seguridad en `localBackups`).
+
+---
+
+### 2026-10-17 — Indicador reactivo de última sincronización en cabecera y ajustes (RF-C9)
+
+**Decisión:** Se centraliza el estado de sincronización en el hook `useSyncInfo()`, que lee `meta.lastSyncedAt` y `lastSyncedRevision` de IndexedDB y actualiza periódicamente el texto relativo en español ("Nunca sincronizado", "Hace unos segundos", "Hace 5 min", "Ayer").
+El indicador se muestra de forma permanente en la cabecera compacta de `App.tsx` y en el panel de Google Drive de Ajustes.
+
+---
+
 ## Ideas fuera de alcance (SPEC sección 13)
 
 - **Precio de coste y beneficio:** interesante para saber el margen por artículo. Requiere modelo de datos adicional.
@@ -258,5 +286,6 @@ Asimismo, en la pestaña "Datos / Test" se refleja el estado de `navigator.stora
 - **Tema oscuro:** deseable para uso nocturno. Fase 8 si hay tiempo.
 - **APK con Capacitor:** para distribuir en Google Play. Fase futura.
 - **Reglas de oferta por artículo (3x2):** descartado del alcance actual.
+
 
 
