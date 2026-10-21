@@ -27,8 +27,8 @@ Funciona **sin conexión** en Android Chrome y guarda los datos en local.
 
 ```bash
 # 1. Clona o descarga el repositorio
-git clone <url-del-repo>
-cd mercamesa
+git clone https://github.com/rlgaray/MercaMesa.git
+cd MercaMesa
 
 # 2. Instala las dependencias
 npm install
@@ -99,7 +99,7 @@ La sincronización con Google Drive funciona en el navegador mediante **Google I
    - **Orígenes autorizados de JavaScript**: añade las URLs donde ejecutas la app:
      - `http://localhost:5173` (servidor de desarrollo `npm run dev`)
      - `http://localhost:4173` (previsualización `npm run preview`)
-     - Tu dominio de producción (si despliegas en GitHub Pages, Vercel, Netlify, etc.)
+     - Tu dominio de producción (ej. `https://rlgaray.github.io` para GitHub Pages)
    - Pulsa **Crear**.
 6. Copia el **ID de cliente** generado (tiene la forma `...apps.googleusercontent.com`).
 7. En la raíz de este proyecto, crea o edita tu archivo `.env`:

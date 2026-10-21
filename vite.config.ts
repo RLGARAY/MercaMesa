@@ -5,6 +5,7 @@ import path from 'path'
 
 // https://vitejs.dev/config/
 export default defineConfig({
+  base: '/MercaMesa/',
   plugins: [
     react(),
     VitePWA({
@@ -19,23 +20,23 @@ export default defineConfig({
         display: 'standalone',
         orientation: 'portrait',
         lang: 'es',
-        start_url: '/',
-        scope: '/',
+        start_url: '/MercaMesa/',
+        scope: '/MercaMesa/',
         icons: [
           {
-            src: '/icons/icon-192.png',
+            src: '/MercaMesa/icons/icon-192.png',
             sizes: '192x192',
             type: 'image/png',
             purpose: 'any',
           },
           {
-            src: '/icons/icon-512.png',
+            src: '/MercaMesa/icons/icon-512.png',
             sizes: '512x512',
             type: 'image/png',
             purpose: 'any',
           },
           {
-            src: '/icons/icon-512-maskable.png',
+            src: '/MercaMesa/icons/icon-512-maskable.png',
             sizes: '512x512',
             type: 'image/png',
             purpose: 'maskable',
@@ -44,7 +45,7 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,webmanifest}'],
-        navigateFallback: '/index.html',
+        navigateFallback: '/MercaMesa/index.html',
         cleanupOutdatedCaches: true,
       },
     }),
