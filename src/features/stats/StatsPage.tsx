@@ -9,7 +9,7 @@ import {
   calculateSummaryMetrics,
   calculateTopItems,
   calculateCategoryMetrics,
-  calculateHourlySales,
+  getRelevantHourlySales,
   findItemsWithoutSales,
   type PeriodType,
 } from '@/domain/stats'
@@ -76,17 +76,14 @@ export default function StatsPage() {
       }))
   }, [categoryMetrics])
 
-  // 5. Ventas por hora (RF-E5)
+  // 5. Ventas por hora (RF-E5, B2)
   const hourlyData = useMemo(() => {
-    const raw = calculateHourlySales(filteredSales)
-    // Filtramos para mostrar solo horas relevantes (entre 8:00 y 22:00, o las que tengan ventas)
-    return raw
-      .filter(h => h.hour >= 8 && h.hour <= 22)
-      .map(h => ({
-        hour: h.hourLabel,
-        euros: Number(centsToEuros(h.totalCents).toFixed(2)),
-        sales: h.salesCount,
-      }))
+    const relevantHours = getRelevantHourlySales(filteredSales)
+    return relevantHours.map(h => ({
+      hour: h.hourLabel,
+      euros: Number(centsToEuros(h.totalCents).toFixed(2)),
+      sales: h.salesCount,
+    }))
   }, [filteredSales])
 
   // 6. Artículos sin ventas y alertas de stock (RF-E7, Decisión 5)

@@ -328,6 +328,31 @@ export function calculateHourlySales(sales: Sale[]): HourlySalesMetric[] {
   return Array.from(hoursMap.values())
 }
 
+/**
+ * Devuelve el subconjunto contiguo de horas para la gráfica de ventas por hora (RF-E5, B2).
+ * El rango es la unión de [defaultStartHour, defaultEndHour] (8..22 por defecto) con el rango
+ * mínimo que contenga todas las horas con ventas activas, garantizando que la suma de la gráfica
+ * coincida siempre con el total del periodo.
+ */
+export function getRelevantHourlySales(
+  sales: Sale[],
+  defaultStartHour = 8,
+  defaultEndHour = 22,
+): HourlySalesMetric[] {
+  const hourly = calculateHourlySales(sales)
+  let startHour = defaultStartHour
+  let endHour = defaultEndHour
+
+  for (const h of hourly) {
+    if (h.salesCount > 0) {
+      if (h.hour < startHour) startHour = h.hour
+      if (h.hour > endHour) endHour = h.hour
+    }
+  }
+
+  return hourly.filter(h => h.hour >= startHour && h.hour <= endHour)
+}
+
 // ---------------------------------------------------------------------------
 // Artículos sin ventas y alertas (RF-E7)
 // ---------------------------------------------------------------------------

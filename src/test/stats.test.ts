@@ -6,6 +6,7 @@ import {
   calculateTopItems,
   calculateCategoryMetrics,
   calculateHourlySales,
+  getRelevantHourlySales,
   findItemsWithoutSales,
 } from '@/domain/stats'
 
@@ -323,7 +324,7 @@ describe('stats domain logic (RF-E1 a RF-E8)', () => {
     })
   })
 
-  describe('calculateHourlySales (RF-E5)', () => {
+  describe('calculateHourlySales y getRelevantHourlySales (RF-E5, B2, #5)', () => {
     it('cuenta ventas y total en las horas correspondientes', () => {
       const hourly = calculateHourlySales([sale1, sale2])
       expect(hourly).toHaveLength(24)
@@ -335,6 +336,44 @@ describe('stats domain logic (RF-E1 a RF-E8)', () => {
       expect(entry?.salesCount).toBe(2)
       expect(entry?.totalCents).toBe(1200)
       expect(entry?.unitsSold).toBe(3)
+    })
+
+    it('usa el rango 8-22 por defecto y se amplía para contener todas las horas con ventas, coincidiendo la suma con el total del periodo (B2, #5)', () => {
+      // Caso 1: ventas solo dentro de 8-22 -> rango se mantiene en 8..22 (15 horas)
+      const normalRange = getRelevantHourlySales([sale1, sale2])
+      expect(normalRange[0]?.hour).toBe(8)
+      expect(normalRange[normalRange.length - 1]?.hour).toBe(22)
+      expect(normalRange).toHaveLength(15)
+
+      // Caso 2: ventas a las 06:15 local (04:15 UTC en verano) y a las 23:40 local (21:40 UTC en verano)
+      const earlySale: Sale = {
+        ...sale1,
+        id: 'sale-early',
+        createdAt: '2026-07-15T04:15:00.000Z', // 06:15 CEST
+        totalCents: 700,
+      }
+      const lateSale: Sale = {
+        ...sale2,
+        id: 'sale-late',
+        createdAt: '2026-07-15T21:40:00.000Z', // 23:40 CEST
+        totalCents: 400,
+      }
+
+      const periodSales = [earlySale, sale1, sale2, lateSale]
+      const expandedRange = getRelevantHourlySales(periodSales)
+
+      expect(expandedRange[0]?.hour).toBe(6)
+      expect(expandedRange[expandedRange.length - 1]?.hour).toBe(23)
+      expect(expandedRange).toHaveLength(18) // 6..23 inclusive
+
+      const summary = calculateSummaryMetrics(periodSales)
+      const chartTotalCents = expandedRange.reduce((sum, h) => sum + h.totalCents, 0)
+      const chartSalesCount = expandedRange.reduce((sum, h) => sum + h.salesCount, 0)
+      const chartUnitsSold = expandedRange.reduce((sum, h) => sum + h.unitsSold, 0)
+
+      expect(chartTotalCents).toBe(summary.totalRevenueCents)
+      expect(chartSalesCount).toBe(summary.salesCount)
+      expect(chartUnitsSold).toBe(summary.unitsSold)
     })
   })
 
