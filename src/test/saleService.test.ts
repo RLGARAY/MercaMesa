@@ -263,4 +263,23 @@ describe('saleService', () => {
     expect(metrics.totalRevenueCents).toBe(0)
     expect(metrics.unitsSold).toBe(0)
   })
+
+  it('getSales({ date }) filtra por día en hora local Europe/Madrid y no por prefijo UTC (B1, #4)', async () => {
+    // 2026-07-14T22:30:00.000Z son las 00:30 del 2026-07-15 en España (CEST, UTC+2)
+    await testDb.sales.add({
+      id: 'sale-local-july-15',
+      createdAt: '2026-07-14T22:30:00.000Z',
+      lines: [],
+      subtotalCents: 500,
+      discountCents: 0,
+      totalCents: 500,
+      status: 'active',
+    })
+
+    const july14Sales = await getSales({ date: '2026-07-14' }, testDb)
+    expect(july14Sales).toHaveLength(0)
+
+    const july15Sales = await getSales({ date: '2026-07-15' }, testDb)
+    expect(july15Sales.map(s => s.id)).toEqual(['sale-local-july-15'])
+  })
 })

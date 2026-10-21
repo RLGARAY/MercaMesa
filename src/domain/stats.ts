@@ -52,11 +52,45 @@ export interface HourlySalesMetric {
 }
 
 // ---------------------------------------------------------------------------
-// Filtrado por periodo (RF-E1)
+// Límites de día en hora local y filtrado por periodo (RF-E1)
 // ---------------------------------------------------------------------------
 
+export interface LocalDayBounds {
+  startMs: number
+  endMs: number
+}
+
 /**
- * Filtra las ventas dentro del periodo solicitado.
+ * Calcula los instantes (epoch ms) de inicio [00:00:00.000] y fin [23:59:59.999]
+ * de un día en la zona horaria local del dispositivo.
+ * Soporta días de 23h y 25h en cambios de horario de verano/invierno (DST).
+ *
+ * @param dateOrYmd Instancia Date o cadena en formato 'YYYY-MM-DD'.
+ */
+export function localDayRange(dateOrYmd: Date | string): LocalDayBounds {
+  let year: number
+  let monthIndex: number
+  let day: number
+
+  if (typeof dateOrYmd === 'string') {
+    const parts = dateOrYmd.split('-').map(Number)
+    year = parts[0] ?? 1970
+    monthIndex = (parts[1] ?? 1) - 1
+    day = parts[2] ?? 1
+  } else {
+    year = dateOrYmd.getFullYear()
+    monthIndex = dateOrYmd.getMonth()
+    day = dateOrYmd.getDate()
+  }
+
+  const startMs = new Date(year, monthIndex, day, 0, 0, 0, 0).getTime()
+  const endMs = new Date(year, monthIndex, day + 1, 0, 0, 0, 0).getTime() - 1
+
+  return { startMs, endMs }
+}
+
+/**
+ * Filtra las ventas dentro del periodo solicitado usando límites de día en hora local.
  * Excluye automáticamente ventas anuladas (RF-E8).
  *
  * @param referenceDate Fecha de referencia (por defecto Date.now() / hoy).
@@ -73,31 +107,34 @@ export function filterSalesByPeriod(
     return activeSales
   }
 
-  // Obtenemos YYYY-MM-DD de referencia local
-  const refYear = referenceDate.getFullYear()
-  const refMonth = String(referenceDate.getMonth() + 1).padStart(2, '0')
-  const refDay = String(referenceDate.getDate()).padStart(2, '0')
-  const todayStr = `${refYear}-${refMonth}-${refDay}`
-
   if (filter.type === 'today') {
-    return activeSales.filter(s => s.createdAt.startsWith(todayStr))
+    const { startMs, endMs } = localDayRange(referenceDate)
+    return activeSales.filter(s => {
+      const t = new Date(s.createdAt).getTime()
+      return t >= startMs && t <= endMs
+    })
   }
 
   if (filter.type === 'last7') {
-    // 7 días atrás desde el inicio del día de referencia (00:00:00)
-    const sevenDaysAgo = new Date(referenceDate)
-    sevenDaysAgo.setDate(referenceDate.getDate() - 6)
-    sevenDaysAgo.setHours(0, 0, 0, 0)
-    const startIso = sevenDaysAgo.toISOString()
+    // 7 días atrás (incluido hoy = hoy y los 6 días previos) desde las 00:00:00 locales
+    const sixDaysAgo = new Date(
+      referenceDate.getFullYear(),
+      referenceDate.getMonth(),
+      referenceDate.getDate() - 6,
+    )
+    const { startMs } = localDayRange(sixDaysAgo)
 
-    return activeSales.filter(s => s.createdAt >= startIso)
+    return activeSales.filter(s => new Date(s.createdAt).getTime() >= startMs)
   }
 
   if (filter.type === 'custom') {
+    const startBound = filter.customStart ? localDayRange(filter.customStart).startMs : undefined
+    const endBound = filter.customEnd ? localDayRange(filter.customEnd).endMs : undefined
+
     return activeSales.filter(s => {
-      const saleDay = s.createdAt.slice(0, 10)
-      if (filter.customStart && saleDay < filter.customStart) return false
-      if (filter.customEnd && saleDay > filter.customEnd) return false
+      const t = new Date(s.createdAt).getTime()
+      if (startBound !== undefined && t < startBound) return false
+      if (endBound !== undefined && t > endBound) return false
       return true
     })
   }

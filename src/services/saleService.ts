@@ -21,6 +21,7 @@ import {
   distributeDiscount,
   type RawDiscountInput,
 } from '@/domain/discount'
+import { localDayRange } from '@/domain/stats'
 
 export interface CartItemInput {
   item: Item
@@ -210,9 +211,13 @@ export async function getSales(
     sales = sales.filter(s => s.status === options.status)
   }
 
-  // Filtro por fecha (YYYY-MM-DD)
+  // Filtro por fecha en hora local (YYYY-MM-DD)
   if (options.date) {
-    sales = sales.filter(s => s.createdAt.startsWith(options.date!))
+    const { startMs, endMs } = localDayRange(options.date)
+    sales = sales.filter(s => {
+      const t = new Date(s.createdAt).getTime()
+      return t >= startMs && t <= endMs
+    })
   }
 
   // Ordenar más recientes primero

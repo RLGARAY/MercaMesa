@@ -4,6 +4,7 @@ import { db } from '@/db/db'
 import type { Sale } from '@/types'
 import { UI } from '@/i18n'
 import { formatCents } from '@/domain/money'
+import { localDayRange } from '@/domain/stats'
 import { voidSale } from '@/services/saleService'
 import Modal from '@/components/Modal'
 
@@ -30,13 +31,18 @@ export default function SalesHistorySection() {
     return true
   })
 
+  const dateRange = dateFilter ? localDayRange(dateFilter) : null
+
   // Aplicar filtros
   const filteredSales = baseSales.filter((sale) => {
     if (statusFilter !== 'all' && sale.status !== statusFilter) {
       return false
     }
-    if (dateFilter && !sale.createdAt.startsWith(dateFilter)) {
-      return false
+    if (dateRange) {
+      const t = new Date(sale.createdAt).getTime()
+      if (t < dateRange.startMs || t > dateRange.endMs) {
+        return false
+      }
     }
     return true
   })

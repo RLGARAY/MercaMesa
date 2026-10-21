@@ -166,6 +166,103 @@ describe('stats domain logic (RF-E1 a RF-E8)', () => {
       expect(res).toHaveLength(1)
       expect(res[0]?.id).toBe('sale-3')
     })
+
+    it('respeta la zona horaria local Europe/Madrid en verano (CEST, UTC+2) e invierno (CET, UTC+1), medianoche local y cambios de hora (B1, #4)', () => {
+      const makeSale = (id: string, createdAt: string): Sale => ({
+        id,
+        createdAt,
+        status: 'active',
+        subtotalCents: 500,
+        discountCents: 0,
+        totalCents: 500,
+        lines: [
+          {
+            itemId: 'item-1',
+            nameSnapshot: 'Pendiente Flor',
+            categoryIdSnapshot: 'cat-1',
+            unitPriceCents: 500,
+            quantity: 1,
+            lineListCents: 500,
+            lineDiscountCents: 0,
+            lineNetCents: 500,
+          },
+        ],
+      })
+
+      // 1. Verano (CEST = UTC+2): el día local 2026-07-15 empieza en 2026-07-14T22:00:00.000Z
+      // - 2026-07-14T21:59:59.999Z -> 23:59:59 del 14 de julio en Madrid (día anterior)
+      // - 2026-07-14T22:00:00.000Z -> 00:00:00 del 15 de julio en Madrid (medianoche local exacta)
+      // - 2026-07-14T22:30:00.000Z -> 00:30:00 del 15 de julio en Madrid (DEBE entrar en Hoy 15-jul)
+      // - 2026-07-14T23:30:00.000Z -> 01:30:00 del 15 de julio en Madrid (DEBE entrar en Hoy 15-jul)
+      const summerSales = [
+        makeSale('summer-prev-day', '2026-07-14T21:59:59.999Z'),
+        makeSale('summer-midnight', '2026-07-14T22:00:00.000Z'),
+        makeSale('summer-2230-utc', '2026-07-14T22:30:00.000Z'),
+        makeSale('summer-2330-utc', '2026-07-14T23:30:00.000Z'),
+      ]
+      const summerRef = new Date('2026-07-15T10:00:00.000Z')
+      const summerToday = filterSalesByPeriod(summerSales, { type: 'today' }, summerRef)
+      expect(summerToday.map(s => s.id)).toEqual([
+        'summer-midnight',
+        'summer-2230-utc',
+        'summer-2330-utc',
+      ])
+
+      // 2. Invierno (CET = UTC+1): el día local 2026-01-15 empieza en 2026-01-14T23:00:00.000Z
+      // - 2026-01-14T22:30:00.000Z -> 23:30:00 del 14 de enero en Madrid (día anterior)
+      // - 2026-01-14T23:00:00.000Z -> 00:00:00 del 15 de enero en Madrid (medianoche local)
+      // - 2026-01-14T23:30:00.000Z -> 00:30:00 del 15 de enero en Madrid (DEBE entrar en Hoy 15-ene)
+      const winterSales = [
+        makeSale('winter-2230-utc', '2026-01-14T22:30:00.000Z'),
+        makeSale('winter-midnight', '2026-01-14T23:00:00.000Z'),
+        makeSale('winter-2330-utc', '2026-01-14T23:30:00.000Z'),
+      ]
+      const winterRef = new Date('2026-01-15T10:00:00.000Z')
+      const winterToday = filterSalesByPeriod(winterSales, { type: 'today' }, winterRef)
+      expect(winterToday.map(s => s.id)).toEqual(['winter-midnight', 'winter-2330-utc'])
+
+      // 3. Cambio de hora de primavera (último domingo de marzo: 2026-03-29, día de 23 horas)
+      // Empieza en 2026-03-28T23:00:00.000Z (CET) y termina en 2026-03-29T21:59:59.999Z (CEST)
+      const marchDstSales = [
+        makeSale('march-before', '2026-03-28T22:59:59.999Z'),
+        makeSale('march-start', '2026-03-28T23:00:00.000Z'),
+        makeSale('march-end', '2026-03-29T21:59:59.999Z'),
+        makeSale('march-next-day', '2026-03-29T22:00:00.000Z'),
+      ]
+      const marchToday = filterSalesByPeriod(
+        marchDstSales,
+        { type: 'today' },
+        new Date('2026-03-29T12:00:00.000Z'),
+      )
+      expect(marchToday.map(s => s.id)).toEqual(['march-start', 'march-end'])
+
+      // 4. Cambio de hora de otoño (último domingo de octubre: 2026-10-25, día de 25 horas)
+      // Empieza en 2026-10-24T22:00:00.000Z (CEST) y termina en 2026-10-25T22:59:59.999Z (CET)
+      const octDstSales = [
+        makeSale('oct-before', '2026-10-24T21:59:59.999Z'),
+        makeSale('oct-start', '2026-10-24T22:00:00.000Z'),
+        makeSale('oct-end', '2026-10-25T22:59:59.999Z'),
+        makeSale('oct-next-day', '2026-10-25T23:00:00.000Z'),
+      ]
+      const octToday = filterSalesByPeriod(
+        octDstSales,
+        { type: 'today' },
+        new Date('2026-10-25T12:00:00.000Z'),
+      )
+      expect(octToday.map(s => s.id)).toEqual(['oct-start', 'oct-end'])
+
+      // 5. Rango personalizado inclusivo en ambos extremos con horas locales
+      const customRangeRes = filterSalesByPeriod(
+        summerSales,
+        { type: 'custom', customStart: '2026-07-15', customEnd: '2026-07-15' },
+        summerRef,
+      )
+      expect(customRangeRes.map(s => s.id)).toEqual([
+        'summer-midnight',
+        'summer-2230-utc',
+        'summer-2330-utc',
+      ])
+    })
   })
 
   describe('calculateSummaryMetrics (RF-E2, RF-E8)', () => {
