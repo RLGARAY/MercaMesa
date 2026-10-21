@@ -4,6 +4,7 @@ import { db } from '@/db/db'
 import type { Item, StockAdjustment, ID } from '@/types'
 import { UI } from '@/i18n'
 import { adjustStock, setStockAbsolute, getAdjustmentsByItem } from '@/services/itemService'
+import { parseStrictIntegerString } from '@/domain/validation'
 import Modal from '@/components/Modal'
 
 export default function InventorySection() {
@@ -65,14 +66,14 @@ export default function InventorySection() {
     try {
       setIsSubmitting(true)
       if (adjustMode === 'absolute') {
-        const target = Number(targetStockStr.trim())
-        if (!Number.isInteger(target)) {
+        const target = parseStrictIntegerString(targetStockStr, { allowNegative: true })
+        if (target === null) {
           throw new Error('Introduce un número entero para el stock real')
         }
         await setStockAbsolute(selectedItemForAdjust.id, target, reason, note.trim() || undefined)
       } else {
-        const delta = Number(deltaStr.trim())
-        if (!Number.isInteger(delta) || delta === 0) {
+        const delta = parseStrictIntegerString(deltaStr, { allowNegative: true })
+        if (delta === null || delta === 0) {
           throw new Error('Introduce una cantidad válida distinta de 0 para sumar o restar')
         }
         await adjustStock(selectedItemForAdjust.id, delta, reason, note.trim() || undefined)
@@ -87,9 +88,12 @@ export default function InventorySection() {
   }
 
   // Calcular delta visual para el modo absoluto
-  const previewDelta = selectedItemForAdjust
-    ? Number(targetStockStr.trim()) - selectedItemForAdjust.stock
-    : 0
+  const parsedTargetPreview = parseStrictIntegerString(targetStockStr, { allowNegative: true })
+  const previewDelta =
+    selectedItemForAdjust && parsedTargetPreview !== null
+      ? parsedTargetPreview - selectedItemForAdjust.stock
+      : null
+  const parsedDeltaPreview = parseStrictIntegerString(deltaStr, { allowNegative: true })
 
   return (
     <div className="space-y-4">
@@ -253,7 +257,7 @@ export default function InventorySection() {
                   className="w-full px-3 py-3 border border-gray-300 rounded-lg text-base font-bold"
                   required
                 />
-                {!isNaN(previewDelta) && (
+                {previewDelta !== null && (
                   <p className="mt-1 text-xs text-gray-500">
                     Cambio neto que se registrará:{' '}
                     <strong className={previewDelta >= 0 ? 'text-green-600' : 'text-red-600'}>
@@ -277,10 +281,10 @@ export default function InventorySection() {
                   className="w-full px-3 py-3 border border-gray-300 rounded-lg text-base font-bold"
                   required
                 />
-                {Number.isInteger(Number(deltaStr)) && (
+                {parsedDeltaPreview !== null && (
                   <p className="mt-1 text-xs text-gray-500">
                     El nuevo stock quedará en:{' '}
-                    <strong>{selectedItemForAdjust.stock + Number(deltaStr)}</strong>
+                    <strong>{selectedItemForAdjust.stock + parsedDeltaPreview}</strong>
                   </p>
                 )}
               </div>

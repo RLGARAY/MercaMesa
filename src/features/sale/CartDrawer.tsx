@@ -86,7 +86,11 @@ export default function CartDrawer({
         if (cents === null) throw new Error('Introduce un descuento válido en € (ej: 2 o 1,50)')
         rawInput.value = cents
       } else if (discountMode === 'percent') {
-        const pct = parseFloat(trimmed.replace(',', '.'))
+        const normalizedPct = trimmed.replace(',', '.')
+        if (!/^-?\d+(\.\d+)?$/.test(normalizedPct)) {
+          throw new Error('Introduce un porcentaje válido (ej: 10 o 25)')
+        }
+        const pct = parseFloat(normalizedPct)
         if (isNaN(pct)) throw new Error('Introduce un porcentaje válido (ej: 10 o 25)')
         rawInput.value = pct
       }

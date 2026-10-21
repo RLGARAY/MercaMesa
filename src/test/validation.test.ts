@@ -5,6 +5,7 @@ import {
   validateAndParsePriceString,
   validateItemStock,
   validateAndParseStockString,
+  parseStrictIntegerString,
   validateCategoryName,
 } from '@/domain/validation'
 
@@ -74,12 +75,51 @@ describe('validateAndParseStockString', () => {
   it('parsea enteros >= 0', () => {
     expect(validateAndParseStockString('5')).toEqual({ stock: 5, error: null })
     expect(validateAndParseStockString('0')).toEqual({ stock: 0, error: null })
+    expect(validateAndParseStockString('  12  ')).toEqual({ stock: 12, error: null })
   })
 
-  it('rechaza cadenas vacías o no numéricas o negativas', () => {
+  it('rechaza cadenas vacías, espacios, decimales, exponentes, -0, texto o negativos (A3, #9)', () => {
     expect(validateAndParseStockString('').error).toBe('El stock es obligatorio')
-    expect(validateAndParseStockString('abc').error).toBe('Introduce un número entero válido')
+    expect(validateAndParseStockString('   ').error).toBe('El stock es obligatorio')
+    expect(validateAndParseStockString('1.5')).toEqual({
+      stock: null,
+      error: 'Introduce un número entero válido',
+    })
+    expect(validateAndParseStockString('1,5')).toEqual({
+      stock: null,
+      error: 'Introduce un número entero válido',
+    })
+    expect(validateAndParseStockString('1e2')).toEqual({
+      stock: null,
+      error: 'Introduce un número entero válido',
+    })
+    expect(validateAndParseStockString('-0')).toEqual({
+      stock: null,
+      error: 'Introduce un número entero válido',
+    })
+    expect(validateAndParseStockString('abc')).toEqual({
+      stock: null,
+      error: 'Introduce un número entero válido',
+    })
+    expect(validateAndParseStockString('10uds')).toEqual({
+      stock: null,
+      error: 'Introduce un número entero válido',
+    })
     expect(validateAndParseStockString('-3').error).toBe('El stock inicial no puede ser negativo')
+  })
+
+  it('parseStrictIntegerString admite negativos solo cuando allowNegative es true y rechaza decimales, exponentes y -0 (A3)', () => {
+    expect(parseStrictIntegerString('0', { allowNegative: true })).toBe(0)
+    expect(parseStrictIntegerString('15', { allowNegative: true })).toBe(15)
+    expect(parseStrictIntegerString('-4', { allowNegative: true })).toBe(-4)
+    expect(parseStrictIntegerString('-4', { allowNegative: false })).toBeNull()
+    expect(parseStrictIntegerString('1.5', { allowNegative: true })).toBeNull()
+    expect(parseStrictIntegerString('1,5', { allowNegative: true })).toBeNull()
+    expect(parseStrictIntegerString('1e2', { allowNegative: true })).toBeNull()
+    expect(parseStrictIntegerString('-0', { allowNegative: true })).toBeNull()
+    expect(parseStrictIntegerString('', { allowNegative: true })).toBeNull()
+    expect(parseStrictIntegerString('   ', { allowNegative: true })).toBeNull()
+    expect(parseStrictIntegerString('texto', { allowNegative: true })).toBeNull()
   })
 })
 

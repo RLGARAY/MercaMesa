@@ -58,16 +58,47 @@ export function validateItemStock(stock: number): string | null {
 }
 
 /**
- * Valida un string de stock introducido por el usuario.
+ * Parsea un string que debe representar un número entero estricto.
+ * Rechaza decimales ('1.5', '1,5'), notación científica ('1e2'), '-0', vacío y texto (A3, #9).
+ * Si allowNegative es true, admite el signo '-' delante de dígitos distintos de todo ceros.
+ */
+export function parseStrictIntegerString(
+  value: string,
+  options: { allowNegative?: boolean } = {},
+): number | null {
+  const trimmed = value.trim()
+  if (trimmed === '') return null
+
+  // Rechazar -0 explícitamente (incluyendo '-00', etc.)
+  if (/^-0+$/.test(trimmed)) return null
+
+  const pattern = options.allowNegative ? /^-?\d+$/ : /^\d+$/
+  if (!pattern.test(trimmed)) return null
+
+  const parsed = Number.parseInt(trimmed, 10)
+  if (!Number.isSafeInteger(parsed)) return null
+
+  return parsed
+}
+
+/**
+ * Valida un string de stock inicial introducido por el usuario.
+ * Rechaza cualquier valor no entero sin redondear en silencio (A3, #9).
  */
 export function validateAndParseStockString(
   value: string,
 ): { stock: number; error: null } | { stock: null; error: string } {
   const trimmed = value.trim()
   if (trimmed === '') return { stock: null, error: 'El stock es obligatorio' }
-  const n = Number(trimmed)
-  if (!Number.isFinite(n)) return { stock: null, error: 'Introduce un número entero válido' }
-  const stock = Math.round(n)
+
+  // Detectar entero negativo (distinto de -0) para dar el mensaje específico de stock inicial
+  if (/^-[1-9]\d*$/.test(trimmed)) {
+    return { stock: null, error: 'El stock inicial no puede ser negativo' }
+  }
+
+  const stock = parseStrictIntegerString(trimmed, { allowNegative: false })
+  if (stock === null) return { stock: null, error: 'Introduce un número entero válido' }
+
   const err = validateItemStock(stock)
   if (err !== null) return { stock: null, error: err }
   return { stock, error: null }
