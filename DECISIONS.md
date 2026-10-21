@@ -150,11 +150,11 @@
 
 ---
 
-### 2026-10-16 — Deshacer cobro mediante anulación atómica temporal (RF-V6, RN-6)
+### 2026-10-16 — Deshacer cobro mediante anulación atómica temporal y `voidReason` (RF-V6, RN-6, A4)
 
-**Decisión:** Al pulsar "Cobrar", se limpia el carrito inmediatamente y se presenta un toast flotante con la confirmación del total y el botón "Deshacer" durante 7 segundos. Si se pulsa "Deshacer", se ejecuta `voidSale(saleId)` devolviendo el stock de forma atómica en Dexie. Si transcurren los 7 segundos, la venta permanece activa definitivamente.
+**Decisión:** Al pulsar "Cobrar", se limpia el carrito inmediatamente y se presenta un toast flotante con la confirmación del total y el botón "Deshacer" durante 7 segundos. Si se pulsa "Deshacer", se ejecuta `voidSale(saleId, 'undo')` devolviendo el stock de forma atómica en Dexie y registrando `voidReason: 'undo'`. Las ventas anuladas con `voidReason: 'undo'` se ocultan por defecto en la pestaña de historial de ventas (con un interruptor "Mostrar deshechas" para consultarlas si se desea), mientras que las anulaciones manuales (`voidReason: 'manual'` o registros antiguos sin ese campo) se muestran siempre en el historial. Ninguna venta anulada cuenta en estadísticas.
 
-**Motivo:** Evita bloqueos en la mesa del mercadillo ante toques accidentales y permite corregir un cobro erróneo al instante sin tener que ir a la pestaña de Ajustes.
+**Motivo:** Evita bloqueos en la mesa del mercadillo ante toques accidentales, conserva la trazabilidad/auditoría completa en base de datos y evita ensuciar la vista por defecto del historial con errores de toque deshechos al instante.
 
 ---
 

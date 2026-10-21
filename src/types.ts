@@ -51,6 +51,7 @@ export interface Sale {
   totalCents: Cents         // subtotalCents - discountCents (lo realmente cobrado)
   status: 'active' | 'voided'
   voidedAt?: string         // ISO 8601 UTC, solo si status === 'voided'
+  voidReason?: 'undo' | 'manual' // Motivo de anulación (retrocompatible: ausente = 'manual')
 }
 
 export interface StockAdjustment {

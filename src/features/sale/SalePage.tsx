@@ -88,11 +88,11 @@ export default function SalePage() {
     }, 7000)
   }
 
-  // Deshacer venta recién creada (RF-V6 / RN-6)
+  // Deshacer venta recién creada (RF-V6 / RN-6 / A4)
   const handleUndo = async () => {
     if (!lastSale) return
     try {
-      await voidSale(lastSale.id)
+      await voidSale(lastSale.id, 'undo')
       setLastSale(null)
       setUndoToastMessage('Venta deshecha y stock devuelto')
       if (undoTimeoutRef.current) window.clearTimeout(undoTimeoutRef.current)

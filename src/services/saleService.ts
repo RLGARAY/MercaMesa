@@ -140,12 +140,15 @@ export async function checkoutSale(
  */
 export async function voidSale(
   saleId: ID,
+  reasonOrDb: 'undo' | 'manual' | MercaMesaDB = 'manual',
   dbInstance: MercaMesaDB = defaultDb,
 ): Promise<void> {
+  const voidReason: 'undo' | 'manual' = typeof reasonOrDb === 'string' ? reasonOrDb : 'manual'
+  const db: MercaMesaDB = typeof reasonOrDb === 'string' ? dbInstance : reasonOrDb
   const now = new Date().toISOString()
 
-  await dbInstance.transaction('rw', [dbInstance.sales, dbInstance.items], async () => {
-    const sale = await dbInstance.sales.get(saleId)
+  await db.transaction('rw', [db.sales, db.items], async () => {
+    const sale = await db.sales.get(saleId)
     if (!sale) {
       throw new Error('Venta no encontrada')
     }
@@ -153,17 +156,18 @@ export async function voidSale(
       throw new Error('La venta ya está anulada')
     }
 
-    // Marcar venta como anulada
-    await dbInstance.sales.update(saleId, {
+    // Marcar venta como anulada registrando el motivo ('undo' | 'manual')
+    await db.sales.update(saleId, {
       status: 'voided',
       voidedAt: now,
+      voidReason,
     })
 
     // Devolver stock de cada línea
     for (const line of sale.lines) {
-      const currentItem = await dbInstance.items.get(line.itemId)
+      const currentItem = await db.items.get(line.itemId)
       if (currentItem) {
-        await dbInstance.items.update(line.itemId, {
+        await db.items.update(line.itemId, {
           stock: currentItem.stock + line.quantity,
           updatedAt: now,
         })
@@ -179,19 +183,27 @@ export async function voidSale(
 export interface SalesFilterOptions {
   status?: 'all' | 'active' | 'voided'
   date?: string // Formato YYYY-MM-DD
+  includeUndo?: boolean // Por defecto false: excluye anulaciones por 'undo' (A4)
 }
 
 /**
  * Obtiene la lista de ventas ordenadas por fecha descendente (más recientes primero).
  * Permite filtrar por estado y por fecha del día (RF-C3).
+ * Por defecto excluye las ventas anuladas mediante el botón "Deshacer" (voidReason === 'undo'),
+ * salvo que se indique includeUndo: true (A4).
  */
 export async function getSales(
   options: SalesFilterOptions = {},
   dbInstance: MercaMesaDB = defaultDb,
 ): Promise<Sale[]> {
-  let query = dbInstance.sales.toCollection()
+  const query = dbInstance.sales.toCollection()
 
   let sales = await query.toArray()
+
+  // Ocultar ventas deshechas ('undo') por defecto (A4)
+  if (!options.includeUndo) {
+    sales = sales.filter(s => !(s.status === 'voided' && s.voidReason === 'undo'))
+  }
 
   // Filtro por estado
   if (options.status && options.status !== 'all') {

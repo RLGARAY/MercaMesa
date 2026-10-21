@@ -10,6 +10,7 @@ import Modal from '@/components/Modal'
 export default function SalesHistorySection() {
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'voided'>('all')
   const [dateFilter, setDateFilter] = useState<string>('')
+  const [showUndoSales, setShowUndoSales] = useState(false)
   const [selectedSale, setSelectedSale] = useState<Sale | null>(null)
   const [showVoidConfirm, setShowVoidConfirm] = useState(false)
   const [isVoiding, setIsVoiding] = useState(false)
@@ -21,8 +22,16 @@ export default function SalesHistorySection() {
     [],
   )
 
+  // Ventas visibles según el interruptor "Mostrar deshechas" (A4)
+  const baseSales = (allSales ?? []).filter((sale) => {
+    if (!showUndoSales && sale.status === 'voided' && sale.voidReason === 'undo') {
+      return false
+    }
+    return true
+  })
+
   // Aplicar filtros
-  const filteredSales = (allSales ?? []).filter((sale) => {
+  const filteredSales = baseSales.filter((sale) => {
     if (statusFilter !== 'all' && sale.status !== statusFilter) {
       return false
     }
@@ -66,9 +75,20 @@ export default function SalesHistorySection() {
     <div className="space-y-4">
       {/* Cabecera y Filtros (RF-C3) */}
       <div className="space-y-3 pb-2 border-b border-gray-100">
-        <div>
-          <h2 className="text-lg font-bold text-gray-900">{UI.settings.salesHistory}</h2>
-          <p className="text-xs text-gray-500">Historial completo de cobros y opción de anulación</p>
+        <div className="flex items-center justify-between gap-2">
+          <div>
+            <h2 className="text-lg font-bold text-gray-900">{UI.settings.salesHistory}</h2>
+            <p className="text-xs text-gray-500">Historial completo de cobros y opción de anulación</p>
+          </div>
+          <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-gray-600 shrink-0">
+            <input
+              type="checkbox"
+              checked={showUndoSales}
+              onChange={(e) => setShowUndoSales(e.target.checked)}
+              className="rounded border-gray-300 text-brand-600"
+            />
+            <span>Mostrar deshechas</span>
+          </label>
         </div>
 
         {/* Filtros: Estado y Fecha */}
@@ -84,7 +104,7 @@ export default function SalesHistorySection() {
                   : 'text-gray-600'
               }`}
             >
-              Todas ({allSales?.length ?? 0})
+              Todas ({baseSales.length})
             </button>
             <button
               type="button"
@@ -159,7 +179,7 @@ export default function SalesHistorySection() {
                     </span>
                     {isVoided ? (
                       <span className="text-[10px] font-bold text-red-700 bg-red-100 px-1.5 py-0.5 rounded">
-                        Anulada
+                        {sale.voidReason === 'undo' ? 'Deshecha' : 'Anulada'}
                       </span>
                     ) : (
                       <span className="text-[10px] font-bold text-green-700 bg-green-100 px-1.5 py-0.5 rounded">

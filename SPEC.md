@@ -94,6 +94,7 @@ interface Sale {
   totalCents: Cents;          // subtotalCents - discountCents (lo realmente cobrado)
   status: 'active' | 'voided';
   voidedAt?: string;
+  voidReason?: 'undo' | 'manual';
 }
 
 interface StockAdjustment {
@@ -139,7 +140,7 @@ Todas las operaciones que cambian stock (crear artículo, cobrar venta, anular v
   4. El resto de céntimos (`discountCents − suma(floors)`) se reparte de 1 en 1 a las líneas con **mayor parte decimal descartada**; en empate, por orden de línea.
   5. Invariantes: `suma(lineDiscountCents) = discountCents`; `0 ≤ lineDiscountCents ≤ lineListCents`; `suma(lineNetCents) = totalCents`.
   - Si `subtotalCents = 0`, todos los descuentos son 0.
-- **RN-6 Anular venta.** Cambia `status` a `'voided'`, guarda `voidedAt` y **devuelve el stock** de sus líneas, en una transacción. Una venta anulada **no cuenta** en estadísticas. No se puede editar una venta: para corregirla se anula y se registra otra.
+- **RN-6 Anular venta.** Cambia `status` a `'voided'`, guarda `voidedAt`, registra `voidReason` (`'manual'` cuando se anula desde el historial o `'undo'` cuando se deshace recién cobrada; registros antiguos sin el campo se tratan como `'manual'`) y **devuelve el stock** de sus líneas, en una transacción. Las anuladas con `'undo'` se ocultan del historial por defecto salvo que se active el interruptor "Mostrar deshechas". Una venta anulada **no cuenta** en estadísticas. No se puede editar una venta: para corregirla se anula y se registra otra.
 - **RN-7 Editar artículo.** Cambiar nombre, precio o categoría **no modifica** ventas pasadas (usan snapshots).
 - **RN-8 Archivar artículo.** Un artículo archivado desaparece de la pantalla de venta y de las listas por defecto, pero mantiene su historial. Se puede restaurar.
 - **RN-9 Categorías.** Un artículo siempre tiene categoría. Existen categorías iniciales editables ("Pendientes", "Llaveros", "Láminas"). No se puede borrar una categoría con artículos activos; se puede archivar.
@@ -158,7 +159,7 @@ La app tiene **navegación inferior con 3 pestañas**: **Venta**, **Estadística
   - Al marcar el check aparece un campo con selector de modo: **Precio final** (por defecto) / **Descuento €** / **Descuento %**.
   - Se muestra en vivo: descuento aplicado y **total a cobrar**.
   - Validaciones según RN-4 con mensaje claro.
-- **RF-V6** Botón **"Cobrar"**: aplica RN-2, muestra confirmación breve (toast con el total y botón **"Deshacer"** durante unos segundos, que equivale a anular la venta recién creada) y limpia el carrito.
+- **RF-V6** Botón **"Cobrar"**: aplica RN-2, muestra confirmación breve (toast con el total y botón **"Deshacer"** durante unos segundos, que equivale a anular la venta recién creada con `voidReason: 'undo'`, ocultándola por defecto en el historial salvo que se marque "Mostrar deshechas") y limpia el carrito.
 - **RF-V7** Botón **"Vaciar carrito"** con confirmación.
 - **RF-V8** Aviso visual cuando el stock del artículo es 0 o la cantidad en carrito lo supera (RN-3).
 - **RF-V9** Acceso rápido a **"Nuevo artículo"** (botón flotante o en el menú) que abre el formulario de alta.

@@ -2,7 +2,8 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { MercaMesaDB, initDB } from '@/db/db'
 import { createItem, getItemById, verifyStockConsistency } from '@/services/itemService'
 import { getActiveCategories } from '@/services/categoryService'
-import { checkoutSale, voidSale } from '@/services/saleService'
+import { checkoutSale, voidSale, getSales } from '@/services/saleService'
+import { calculateSummaryMetrics } from '@/domain/stats'
 
 describe('saleService', () => {
   let testDb: MercaMesaDB
@@ -207,5 +208,59 @@ describe('saleService', () => {
     await voidSale(sale.id, testDb)
 
     await expect(voidSale(sale.id, testDb)).rejects.toThrow('La venta ya está anulada')
+  })
+
+  it('Deshacer (voidReason: "undo") devuelve el stock, oculta la venta del historial por defecto, la muestra con includeUndo y no cuenta en estadísticas (A4, #3)', async () => {
+    const item = await createItem(
+      {
+        name: 'Anillo plata',
+        categoryId,
+        priceCents: 1200,
+        stockInitial: 5,
+      },
+      testDb,
+    )
+
+    // 1. Cobrar venta y deshacerla inmediatamente (como desde el toast de venta)
+    const undoneSale = await checkoutSale(
+      {
+        items: [{ item, quantity: 2 }],
+        discount: { enabled: false, mode: 'euros', value: 0 },
+      },
+      testDb,
+    )
+    await voidSale(undoneSale.id, 'undo', testDb)
+
+    // 2. El stock vuelve al valor original (5)
+    const afterUndoItem = await getItemById(item.id, testDb)
+    expect(afterUndoItem?.stock).toBe(5)
+
+    // 3. Cobrar otra venta y anularla manualmente desde el historial
+    const manualVoidSale = await checkoutSale(
+      {
+        items: [{ item, quantity: 1 }],
+        discount: { enabled: false, mode: 'euros', value: 0 },
+      },
+      testDb,
+    )
+    await voidSale(manualVoidSale.id, testDb)
+
+    // 4. Por defecto getSales NO devuelve la venta deshecha ('undo'), pero SÍ la anulada manualmente
+    const defaultHistory = await getSales({}, testDb)
+    expect(defaultHistory.map(s => s.id)).toEqual([manualVoidSale.id])
+
+    // 5. Con includeUndo: true aparecen ambas
+    const fullHistory = await getSales({ includeUndo: true }, testDb)
+    expect(fullHistory).toHaveLength(2)
+    const storedUndo = fullHistory.find(s => s.id === undoneSale.id)
+    expect(storedUndo?.voidReason).toBe('undo')
+    const storedManual = fullHistory.find(s => s.id === manualVoidSale.id)
+    expect(storedManual?.voidReason).toBe('manual')
+
+    // 6. No cuenta en estadísticas
+    const metrics = calculateSummaryMetrics(fullHistory)
+    expect(metrics.salesCount).toBe(0)
+    expect(metrics.totalRevenueCents).toBe(0)
+    expect(metrics.unitsSold).toBe(0)
   })
 })
