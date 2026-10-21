@@ -62,8 +62,9 @@ export interface StockAdjustment {
   note?: string
 }
 
-/** Una sola fila en la tabla meta — configuración y estado de sincronización */
+/** Una sola fila en la tabla meta (clave fija 'main') — configuración y estado de sincronización */
 export interface Meta {
+  id: 'main'
   schemaVersion: number
   deviceId: ID              // identifica esta instalación
   lastSyncedRevision: number // última revisión de Drive conocida

@@ -301,6 +301,14 @@ Se refuerzan los anillos de foco visibles (`focus-visible:ring-2 focus-visible:r
 
 ---
 
+### 2026-10-21 — Migración de esquema v1 → v2: clave primaria fija `'main'` en `meta` (A1)
+
+**Decisión:** La tabla `meta` pasa de tener `schemaVersion` como clave primaria (v1) a usar `id` con valor fijo `'main'` (v2). Dado que IndexedDB/Dexie no soporta modificar la clave primaria de un almacén en un único paso, se emplea el patrón oficial de migración en dos pasos (`version(1.5)` con almacén temporal `meta_v2_tmp` y eliminación de `meta` antiguo, seguido de `version(2)` recreando `meta: 'id'`). En el paso de `upgrade` se guarda automáticamente una copia de seguridad en `localBackups` con motivo `'before-migration'` (SPEC sección 8).
+
+**Motivo:** Con `schemaVersion` como clave primaria, cualquier subida de versión de esquema rompía las llamadas a `meta.update(...)`. Una clave fija `'main'` garantiza que siempre exista exactamente una fila direccionable con independencia de la versión del esquema.
+
+---
+
 ## Ideas fuera de alcance (SPEC sección 13)
 
 - **Precio de coste y beneficio:** interesante para saber el margen por artículo. Requiere modelo de datos adicional.

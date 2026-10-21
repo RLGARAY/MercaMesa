@@ -19,7 +19,10 @@ import type {
 } from '@/types'
 
 /** Versión actual del esquema. Subir al añadir/cambiar tablas o índices. */
-export const SCHEMA_VERSION = 1
+export const SCHEMA_VERSION = 2
+
+/** Clave primaria fija del único registro en la tabla meta. */
+export const META_KEY = 'main' as const
 
 export class MercaMesaDB extends Dexie {
   // Dexie infiere el tipo de cada tabla a partir de la declaración
@@ -27,7 +30,7 @@ export class MercaMesaDB extends Dexie {
   items!: Table<Item>
   sales!: Table<Sale>
   adjustments!: Table<StockAdjustment>
-  meta!: Table<Meta>
+  meta!: Table<Meta, 'main'>
   localBackups!: Table<LocalBackup>
 
   constructor(dbName = 'MercaMesaDB', options?: DexieOptions) {
@@ -40,7 +43,7 @@ export class MercaMesaDB extends Dexie {
      *   - adjustments: por artículo (para recalcular stock)
      *   - items: por categoría (para filtros de la pantalla de venta)
      */
-    this.version(SCHEMA_VERSION).stores({
+    this.version(1).stores({
       categories: 'id, sortOrder, archived',
       items: 'id, categoryId, archived',
       sales: 'id, createdAt, status',
@@ -48,6 +51,88 @@ export class MercaMesaDB extends Dexie {
       meta: 'schemaVersion',
       localBackups: 'id, createdAt',
     })
+
+    /**
+     * Paso intermedio 1.5 — preparación para cambio de clave primaria de `meta`.
+     * Dexie no permite cambiar la clave primaria de un almacén existente en un solo paso.
+     * 1. Guarda copia automática en `localBackups` con motivo 'before-migration' (SPEC sección 8).
+     * 2. Copia la fila existente de `meta` a un almacén temporal `meta_v2_tmp` bajo la clave fija 'main'.
+     * 3. Elimina el almacén `meta` antiguo (`meta: null`).
+     */
+    this.version(1.5)
+      .stores({
+        meta: null,
+        meta_v2_tmp: 'id',
+      })
+      .upgrade(async (tx) => {
+        const [oldMetas, categories, items, sales, adjustments] = await Promise.all([
+          tx.table('meta').toArray(),
+          tx.table('categories').toArray(),
+          tx.table('items').toArray(),
+          tx.table('sales').toArray(),
+          tx.table('adjustments').toArray(),
+        ])
+
+        const oldMeta = oldMetas[0] as Omit<Meta, 'id'> | undefined
+        const now = new Date().toISOString()
+
+        // Guardar copia en localBackups antes de aplicar la migración (SPEC sección 8)
+        const backupPayload = {
+          schemaVersion: oldMeta?.schemaVersion ?? 1,
+          revision: oldMeta?.lastSyncedRevision ?? 0,
+          exportedAt: now,
+          deviceId: oldMeta?.deviceId ?? crypto.randomUUID(),
+          categories,
+          items,
+          sales,
+          adjustments,
+        }
+
+        const localBackupsTable = tx.table<LocalBackup>('localBackups')
+        await localBackupsTable.add({
+          id: crypto.randomUUID(),
+          createdAt: now,
+          schemaVersion: oldMeta?.schemaVersion ?? 1,
+          data: JSON.stringify(backupPayload),
+          reason: 'before-migration',
+        })
+
+        const allBackups = await localBackupsTable.orderBy('createdAt').toArray()
+        if (allBackups.length > 3) {
+          const toDelete = allBackups.slice(0, allBackups.length - 3)
+          for (const old of toDelete) {
+            await localBackupsTable.delete(old.id)
+          }
+        }
+
+        // Migrar fila de meta a clave fija 'main'
+        const migratedMeta: Meta = {
+          id: META_KEY,
+          schemaVersion: SCHEMA_VERSION,
+          deviceId: oldMeta?.deviceId ?? crypto.randomUUID(),
+          lastSyncedRevision: oldMeta?.lastSyncedRevision ?? 0,
+          ...(oldMeta?.lastSyncedAt !== undefined ? { lastSyncedAt: oldMeta.lastSyncedAt } : {}),
+          ...(oldMeta?.driveFileId !== undefined ? { driveFileId: oldMeta.driveFileId } : {}),
+        }
+
+        await tx.table('meta_v2_tmp').put(migratedMeta)
+      })
+
+    /**
+     * Versión 2 — recrea `meta` con clave primaria `'id'` (valor fijo `'main'`)
+     * y elimina el almacén temporal `meta_v2_tmp`.
+     */
+    this.version(SCHEMA_VERSION)
+      .stores({
+        meta_v2_tmp: null,
+        meta: 'id',
+      })
+      .upgrade(async (tx) => {
+        const tmpRows = await tx.table<Meta>('meta_v2_tmp').toArray()
+        if (tmpRows.length > 0) {
+          await tx.table<Meta>('meta').bulkPut(tmpRows)
+        }
+      })
   }
 }
 
@@ -73,10 +158,11 @@ export async function initDB(dbInstance: MercaMesaDB = db): Promise<void> {
     await navigator.storage.persist()
   }
 
-  // Crear o recuperar el registro Meta (siempre hay exactamente uno)
-  const existingMeta = await dbInstance.meta.count()
-  if (existingMeta === 0) {
-    await dbInstance.meta.add({
+  // Crear o recuperar el registro Meta bajo la clave fija 'main'
+  const existingMeta = await dbInstance.meta.get(META_KEY)
+  if (!existingMeta) {
+    await dbInstance.meta.put({
+      id: META_KEY,
       schemaVersion: SCHEMA_VERSION,
       deviceId: crypto.randomUUID(),
       lastSyncedRevision: 0,

@@ -105,7 +105,8 @@ interface StockAdjustment {
   note?: string;
 }
 
-interface Meta {              // una sola fila
+interface Meta {              // una sola fila (clave primaria fija 'main')
+  id: 'main';
   schemaVersion: number;
   deviceId: ID;               // identifica esta instalación
   lastSyncedRevision: number; // última revisión de Drive conocida

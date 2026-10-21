@@ -19,7 +19,7 @@ import {
   type BackupPayload,
   type ImportSummary,
 } from '@/services/backupService'
-import { db as defaultDb, type MercaMesaDB, SCHEMA_VERSION } from '@/db/db'
+import { db as defaultDb, type MercaMesaDB, SCHEMA_VERSION, META_KEY } from '@/db/db'
 import type { Meta } from '@/types'
 
 export type UploadResult =
@@ -33,12 +33,13 @@ export interface DriveRestorePreview {
 }
 
 /**
- * Obtiene el registro Meta actual de la base de datos local.
+ * Obtiene el registro Meta actual de la base de datos local (clave fija 'main').
  */
 export async function getLocalMeta(dbInstance: MercaMesaDB = defaultDb): Promise<Meta> {
-  const meta = await dbInstance.meta.toCollection().first()
+  const meta = await dbInstance.meta.get(META_KEY)
   if (!meta) {
     return {
+      id: META_KEY,
       schemaVersion: SCHEMA_VERSION,
       deviceId: crypto.randomUUID(),
       lastSyncedRevision: 0,
@@ -88,17 +89,18 @@ export async function uploadToDrive(
 
   const syncedAt = new Date().toISOString()
 
-  // Actualizar meta localmente
+  // Actualizar meta localmente bajo la clave fija 'main'
   await dbInstance.transaction('rw', dbInstance.meta, async () => {
-    const existing = await dbInstance.meta.toCollection().first()
+    const existing = await dbInstance.meta.get(META_KEY)
     if (existing) {
-      await dbInstance.meta.update(existing.schemaVersion, {
+      await dbInstance.meta.update(META_KEY, {
         lastSyncedRevision: nextRevision,
         lastSyncedAt: syncedAt,
         driveFileId: result.fileId,
       })
     } else {
-      await dbInstance.meta.add({
+      await dbInstance.meta.put({
+        id: META_KEY,
         schemaVersion: SCHEMA_VERSION,
         deviceId: payload.deviceId,
         lastSyncedRevision: nextRevision,
@@ -194,8 +196,9 @@ export async function applyDriveRestore(
       }
 
       await dbInstance.meta.clear()
-      await dbInstance.meta.add({
-        schemaVersion: payload.schemaVersion,
+      await dbInstance.meta.put({
+        id: META_KEY,
+        schemaVersion: SCHEMA_VERSION,
         deviceId: payload.deviceId,
         lastSyncedRevision: remoteMeta.revision,
         lastSyncedAt: syncedAt,

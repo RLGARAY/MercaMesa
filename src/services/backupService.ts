@@ -18,7 +18,7 @@ import type {
   LocalBackup,
   ID,
 } from '@/types'
-import { db as defaultDb, type MercaMesaDB, SCHEMA_VERSION, initDB } from '@/db/db'
+import { db as defaultDb, type MercaMesaDB, SCHEMA_VERSION, META_KEY, initDB } from '@/db/db'
 
 export const CART_STORAGE_KEY = 'mercamesa_cart_v1'
 
@@ -96,7 +96,7 @@ export function validateBackupPayload(
     return { valid: false, error: 'Falta la colección de ajustes de inventario en el archivo' }
   }
 
-  const payload: BackupPayload = {
+  const payload: BackupPayload = migrateBackupPayload({
     schemaVersion: obj.schemaVersion,
     revision: typeof obj.revision === 'number' ? obj.revision : 1,
     exportedAt: obj.exportedAt,
@@ -105,9 +105,23 @@ export function validateBackupPayload(
     items: obj.items as Item[],
     sales: obj.sales as Sale[],
     adjustments: obj.adjustments as StockAdjustment[],
-  }
+  })
 
   return { valid: true, payload }
+}
+
+/**
+ * Migra un BackupPayload de una versión anterior (p. ej. v1) al esquema actual (SPEC sección 8).
+ * En v1 -> v2 las colecciones exportadas mantienen su estructura y se normaliza schemaVersion.
+ */
+export function migrateBackupPayload(payload: BackupPayload): BackupPayload {
+  if (payload.schemaVersion >= SCHEMA_VERSION) {
+    return payload
+  }
+  return {
+    ...payload,
+    schemaVersion: SCHEMA_VERSION,
+  }
 }
 
 /**
@@ -134,7 +148,7 @@ export function parseAndValidateBackup(
 export async function createBackupPayload(
   dbInstance: MercaMesaDB = defaultDb,
 ): Promise<BackupPayload> {
-  const meta = await dbInstance.meta.toCollection().first()
+  const meta = await dbInstance.meta.get(META_KEY)
   const [categories, items, sales, adjustments] = await Promise.all([
     dbInstance.categories.toArray(),
     dbInstance.items.toArray(),
@@ -274,10 +288,11 @@ async function applyBackupPayload(
         await dbInstance.adjustments.bulkAdd(payload.adjustments)
       }
 
-      // Actualizar registro Meta
+      // Actualizar registro Meta bajo clave fija 'main'
       await dbInstance.meta.clear()
-      await dbInstance.meta.add({
-        schemaVersion: payload.schemaVersion,
+      await dbInstance.meta.put({
+        id: META_KEY,
+        schemaVersion: SCHEMA_VERSION,
         deviceId: payload.deviceId,
         lastSyncedRevision: payload.revision,
       })

@@ -29,7 +29,7 @@ describe('backupService (RF-C6, RF-C7, RF-C11)', () => {
 
   describe('Validación de BackupPayload (SPEC secciones 7 y 8)', () => {
     const validData: BackupPayload = {
-      schemaVersion: 1,
+      schemaVersion: SCHEMA_VERSION,
       revision: 2,
       exportedAt: '2026-10-16T12:00:00.000Z',
       deviceId: 'dev-123',
@@ -43,7 +43,7 @@ describe('backupService (RF-C6, RF-C7, RF-C11)', () => {
       const res = validateBackupPayload(validData)
       expect(res.valid).toBe(true)
       if (res.valid) {
-        expect(res.payload.schemaVersion).toBe(1)
+        expect(res.payload.schemaVersion).toBe(SCHEMA_VERSION)
         expect(res.payload.categories).toHaveLength(1)
       }
     })

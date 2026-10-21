@@ -1,13 +1,14 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
 import { useSyncInfo } from '@/hooks/useSyncInfo'
-import { db } from '@/db/db'
+import { db, SCHEMA_VERSION, META_KEY } from '@/db/db'
 
 describe('useSyncInfo (RF-C9)', () => {
   beforeEach(async () => {
     await db.meta.clear()
-    await db.meta.add({
-      schemaVersion: 1,
+    await db.meta.put({
+      id: META_KEY,
+      schemaVersion: SCHEMA_VERSION,
       deviceId: 'dev-1',
       lastSyncedRevision: 0,
     })
@@ -36,7 +37,7 @@ describe('useSyncInfo (RF-C9)', () => {
     })
 
     const nowIso = new Date().toISOString()
-    await db.meta.update(1, {
+    await db.meta.update(META_KEY, {
       lastSyncedRevision: 3,
       lastSyncedAt: nowIso,
     })
