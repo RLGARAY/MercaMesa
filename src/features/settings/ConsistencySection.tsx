@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { Item } from '@/types'
 import { UI } from '@/i18n'
-import { verifyStockConsistency } from '@/services/itemService'
+import { verifyStockConsistency, repairStockInconsistencies } from '@/services/itemService'
 
 interface InconsistencyResult {
   item: Item
@@ -26,6 +26,20 @@ export default function ConsistencySection({ onFixItem }: ConsistencySectionProp
   const handleRunCheck = async () => {
     setIsRunning(true)
     try {
+      const issues = await verifyStockConsistency()
+      setResult({
+        tested: true,
+        inconsistencies: issues,
+      })
+    } finally {
+      setIsRunning(false)
+    }
+  }
+
+  const handleRepairAll = async () => {
+    setIsRunning(true)
+    try {
+      await repairStockInconsistencies()
       const issues = await verifyStockConsistency()
       setResult({
         tested: true,
@@ -93,6 +107,15 @@ export default function ConsistencySection({ onFixItem }: ConsistencySectionProp
                   </div>
                 ))}
               </div>
+
+              <button
+                type="button"
+                onClick={handleRepairAll}
+                disabled={isRunning}
+                className="w-full min-h-12 mt-2 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-xl shadow-sm transition-colors disabled:opacity-50"
+              >
+                Reparar discrepancias de inventario
+              </button>
             </div>
           )}
         </div>

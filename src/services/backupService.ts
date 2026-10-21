@@ -14,13 +14,21 @@ import type {
   Category,
   Item,
   Sale,
+  SaleLine,
   StockAdjustment,
   LocalBackup,
   ID,
 } from '@/types'
 import { db as defaultDb, type MercaMesaDB, SCHEMA_VERSION, META_KEY, initDB } from '@/db/db'
+import { verifyStockConsistency } from '@/services/itemService'
 
 export const CART_STORAGE_KEY = 'mercamesa_cart_v1'
+
+export interface StockInconsistency {
+  item: Item
+  expected: number
+  actual: number
+}
 
 /**
  * Estructura estándar del archivo JSON de copia de seguridad (SPEC sección 7).
@@ -42,58 +50,329 @@ export interface ImportSummary {
   salesCount: number
   adjustmentsCount: number
   exportedAt: string
+  inconsistencies: StockInconsistency[]
 }
 
+export type BackupValidationResult =
+  | { valid: true; payload: BackupPayload }
+  | { valid: false; error: string; errors: string[] }
+
 // ---------------------------------------------------------------------------
-// Validación pura de backup
+// Validación pura de backup (A2)
 // ---------------------------------------------------------------------------
+
+const MAX_VALIDATION_ERRORS = 10
+const VALID_ADJUSTMENT_REASONS = new Set(['initial', 'restock', 'correction', 'loss', 'other'])
+
+function isRecord(val: unknown): val is Record<string, unknown> {
+  return typeof val === 'object' && val !== null && !Array.isArray(val)
+}
+
+function isNonEmptyString(val: unknown): val is string {
+  return typeof val === 'string' && val.trim().length > 0
+}
+
+function isValidIsoDateString(val: unknown): val is string {
+  if (typeof val !== 'string' || val.trim().length === 0) return false
+  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(val)) return false
+  return !Number.isNaN(Date.parse(val))
+}
 
 /**
- * Valida que un objeto desconocido cumpla con la estructura de BackupPayload
- * y que schemaVersion no sea superior a la versión actual de la app.
+ * Valida que un objeto desconocido cumpla con la estructura de BackupPayload,
+ * que schemaVersion no sea superior a la versión actual de la app, y que cada
+ * registro, referencia e invariante de venta sea íntegro (A2).
  */
-export function validateBackupPayload(
-  data: unknown,
-): { valid: true; payload: BackupPayload } | { valid: false; error: string } {
-  if (typeof data !== 'object' || data === null) {
-    return { valid: false, error: 'El archivo no contiene un objeto JSON válido' }
+export function validateBackupPayload(data: unknown): BackupValidationResult {
+  if (!isRecord(data)) {
+    const msg = 'El archivo no contiene un objeto JSON válido'
+    return { valid: false, error: msg, errors: [msg] }
   }
 
-  const obj = data as Record<string, unknown>
+  const obj = data
 
   // 1. Validar schemaVersion
   if (typeof obj.schemaVersion !== 'number' || !Number.isInteger(obj.schemaVersion) || obj.schemaVersion < 1) {
-    return { valid: false, error: 'El archivo no contiene una versión de esquema válida' }
+    const msg = 'El archivo no contiene una versión de esquema válida'
+    return { valid: false, error: msg, errors: [msg] }
   }
 
   if (obj.schemaVersion > SCHEMA_VERSION) {
-    return {
-      valid: false,
-      error: `El archivo es de una versión más nueva (v${obj.schemaVersion}). Actualiza la app para poder importarlo.`,
-    }
+    const msg = `El archivo es de una versión más nueva (v${obj.schemaVersion}). Actualiza la app para poder importarlo.`
+    return { valid: false, error: msg, errors: [msg] }
   }
 
   // 2. Validar metadatos requeridos
-  if (typeof obj.exportedAt !== 'string' || !obj.exportedAt) {
-    return { valid: false, error: 'El archivo no contiene la fecha de exportación' }
+  if (!isValidIsoDateString(obj.exportedAt)) {
+    const msg = 'El archivo no contiene una fecha de exportación ISO válida'
+    return { valid: false, error: msg, errors: [msg] }
   }
 
-  if (typeof obj.deviceId !== 'string' || !obj.deviceId) {
-    return { valid: false, error: 'El archivo no contiene el identificador de dispositivo' }
+  if (!isNonEmptyString(obj.deviceId)) {
+    const msg = 'El archivo no contiene el identificador de dispositivo'
+    return { valid: false, error: msg, errors: [msg] }
   }
 
-  // 3. Validar arrays de datos
+  if (obj.revision !== undefined && (typeof obj.revision !== 'number' || !Number.isInteger(obj.revision) || obj.revision < 0)) {
+    const msg = 'El número de revisión del archivo no es un entero válido'
+    return { valid: false, error: msg, errors: [msg] }
+  }
+
+  // 3. Validar que las colecciones sean arrays
   if (!Array.isArray(obj.categories)) {
-    return { valid: false, error: 'Falta la colección de categorías en el archivo' }
+    const msg = 'Falta la colección de categorías en el archivo'
+    return { valid: false, error: msg, errors: [msg] }
   }
   if (!Array.isArray(obj.items)) {
-    return { valid: false, error: 'Falta la colección de artículos en el archivo' }
+    const msg = 'Falta la colección de artículos en el archivo'
+    return { valid: false, error: msg, errors: [msg] }
   }
   if (!Array.isArray(obj.sales)) {
-    return { valid: false, error: 'Falta la colección de ventas en el archivo' }
+    const msg = 'Falta la colección de ventas en el archivo'
+    return { valid: false, error: msg, errors: [msg] }
   }
   if (!Array.isArray(obj.adjustments)) {
-    return { valid: false, error: 'Falta la colección de ajustes de inventario en el archivo' }
+    const msg = 'Falta la colección de ajustes de inventario en el archivo'
+    return { valid: false, error: msg, errors: [msg] }
+  }
+
+  const errors: string[] = []
+  const addError = (msg: string) => {
+    if (errors.length < MAX_VALIDATION_ERRORS) {
+      errors.push(msg)
+    }
+  }
+
+  // 4. Validar categorías y unicidad de IDs
+  const categoryIds = new Set<string>()
+  for (let i = 0; i < obj.categories.length; i++) {
+    const raw = obj.categories[i]
+    const label = `Categoría #${i + 1}`
+    if (!isRecord(raw)) {
+      addError(`${label}: no es un objeto válido`)
+      continue
+    }
+    if (!isNonEmptyString(raw.id)) {
+      addError(`${label}: id ausente o inválido`)
+    } else if (categoryIds.has(raw.id)) {
+      addError(`${label} (${raw.id}): id de categoría duplicado`)
+    } else {
+      categoryIds.add(raw.id)
+    }
+    if (!isNonEmptyString(raw.name)) {
+      addError(`${label}: nombre vacío o inválido`)
+    }
+    if (typeof raw.sortOrder !== 'number' || !Number.isInteger(raw.sortOrder)) {
+      addError(`${label}: sortOrder debe ser un entero`)
+    }
+    if (typeof raw.archived !== 'boolean') {
+      addError(`${label}: archived debe ser booleano`)
+    }
+  }
+
+  // 5. Validar artículos, unicidad de IDs e integridad referencial con categorías
+  const itemIds = new Set<string>()
+  for (let i = 0; i < obj.items.length; i++) {
+    const raw = obj.items[i]
+    const label = `Artículo #${i + 1}`
+    if (!isRecord(raw)) {
+      addError(`${label}: no es un objeto válido`)
+      continue
+    }
+    if (!isNonEmptyString(raw.id)) {
+      addError(`${label}: id ausente o inválido`)
+    } else if (itemIds.has(raw.id)) {
+      addError(`${label} (${raw.id}): id de artículo duplicado`)
+    } else {
+      itemIds.add(raw.id)
+    }
+    if (!isNonEmptyString(raw.name)) {
+      addError(`${label}: nombre vacío o inválido`)
+    }
+    if (!isNonEmptyString(raw.categoryId) || !categoryIds.has(raw.categoryId)) {
+      addError(`${label}: categoryId (${String(raw.categoryId)}) no referencia una categoría existente`)
+    }
+    if (typeof raw.priceCents !== 'number' || !Number.isInteger(raw.priceCents) || raw.priceCents <= 0) {
+      addError(`${label}: priceCents debe ser un entero > 0`)
+    }
+    if (typeof raw.stock !== 'number' || !Number.isInteger(raw.stock)) {
+      addError(`${label}: stock debe ser un número entero`)
+    }
+    if (raw.imageThumb !== undefined && typeof raw.imageThumb !== 'string') {
+      addError(`${label}: imageThumb debe ser texto si está presente`)
+    }
+    if (typeof raw.archived !== 'boolean') {
+      addError(`${label}: archived debe ser booleano`)
+    }
+    if (!isValidIsoDateString(raw.createdAt)) {
+      addError(`${label}: createdAt no es una fecha ISO válida`)
+    }
+    if (!isValidIsoDateString(raw.updatedAt)) {
+      addError(`${label}: updatedAt no es una fecha ISO válida`)
+    }
+  }
+
+  // 6. Validar ventas, líneas, referencias a artículos e invariantes aritméticos
+  const saleIds = new Set<string>()
+  for (let i = 0; i < obj.sales.length; i++) {
+    const raw = obj.sales[i]
+    const label = `Venta #${i + 1}`
+    if (!isRecord(raw)) {
+      addError(`${label}: no es un objeto válido`)
+      continue
+    }
+    if (!isNonEmptyString(raw.id)) {
+      addError(`${label}: id ausente o inválido`)
+    } else if (saleIds.has(raw.id)) {
+      addError(`${label} (${raw.id}): id de venta duplicado`)
+    } else {
+      saleIds.add(raw.id)
+    }
+    if (!isValidIsoDateString(raw.createdAt)) {
+      addError(`${label}: createdAt no es una fecha ISO válida`)
+    }
+    if (raw.status !== 'active' && raw.status !== 'voided') {
+      addError(`${label}: status inválido (${String(raw.status)})`)
+    }
+    if (raw.voidedAt !== undefined && !isValidIsoDateString(raw.voidedAt)) {
+      addError(`${label}: voidedAt no es una fecha ISO válida`)
+    }
+    if (raw.voidReason !== undefined && raw.voidReason !== 'undo' && raw.voidReason !== 'manual') {
+      addError(`${label}: voidReason inválido (${String(raw.voidReason)})`)
+    }
+    if (typeof raw.subtotalCents !== 'number' || !Number.isInteger(raw.subtotalCents) || raw.subtotalCents < 0) {
+      addError(`${label}: subtotalCents debe ser un entero >= 0`)
+    }
+    if (typeof raw.discountCents !== 'number' || !Number.isInteger(raw.discountCents) || raw.discountCents < 0) {
+      addError(`${label}: discountCents debe ser un entero >= 0`)
+    }
+    if (typeof raw.totalCents !== 'number' || !Number.isInteger(raw.totalCents) || raw.totalCents < 0) {
+      addError(`${label}: totalCents debe ser un entero >= 0`)
+    }
+
+    if (!Array.isArray(raw.lines) || raw.lines.length === 0) {
+      addError(`${label}: debe contener al menos una línea de venta`)
+      continue
+    }
+
+    let sumLineList = 0
+    let sumLineDiscount = 0
+    let linesAreNumbersValid = true
+
+    for (let j = 0; j < raw.lines.length; j++) {
+      const lRaw = raw.lines[j] as unknown
+      const lineLabel = `${label}, línea #${j + 1}`
+      if (!isRecord(lRaw)) {
+        addError(`${lineLabel}: no es un objeto válido`)
+        linesAreNumbersValid = false
+        continue
+      }
+      if (!isNonEmptyString(lRaw.itemId) || !itemIds.has(lRaw.itemId)) {
+        addError(`${lineLabel}: itemId (${String(lRaw.itemId)}) no referencia un artículo existente`)
+      }
+      if (!isNonEmptyString(lRaw.nameSnapshot)) {
+        addError(`${lineLabel}: nameSnapshot vacío o inválido`)
+      }
+      if (!isNonEmptyString(lRaw.categoryIdSnapshot)) {
+        addError(`${lineLabel}: categoryIdSnapshot vacío o inválido`)
+      }
+      if (typeof lRaw.unitPriceCents !== 'number' || !Number.isInteger(lRaw.unitPriceCents) || lRaw.unitPriceCents <= 0) {
+        addError(`${lineLabel}: unitPriceCents debe ser un entero > 0`)
+        linesAreNumbersValid = false
+      }
+      if (typeof lRaw.quantity !== 'number' || !Number.isInteger(lRaw.quantity) || lRaw.quantity < 1) {
+        addError(`${lineLabel}: quantity debe ser un entero >= 1`)
+        linesAreNumbersValid = false
+      }
+      if (typeof lRaw.lineListCents !== 'number' || !Number.isInteger(lRaw.lineListCents) || lRaw.lineListCents < 0) {
+        addError(`${lineLabel}: lineListCents debe ser un entero >= 0`)
+        linesAreNumbersValid = false
+      }
+      if (typeof lRaw.lineDiscountCents !== 'number' || !Number.isInteger(lRaw.lineDiscountCents) || lRaw.lineDiscountCents < 0) {
+        addError(`${lineLabel}: lineDiscountCents debe ser un entero >= 0`)
+        linesAreNumbersValid = false
+      }
+      if (typeof lRaw.lineNetCents !== 'number' || !Number.isInteger(lRaw.lineNetCents) || lRaw.lineNetCents < 0) {
+        addError(`${lineLabel}: lineNetCents debe ser un entero >= 0`)
+        linesAreNumbersValid = false
+      }
+
+      if (linesAreNumbersValid) {
+        const line = lRaw as unknown as SaleLine
+        if (line.lineListCents !== line.unitPriceCents * line.quantity) {
+          addError(`${lineLabel}: lineListCents (${line.lineListCents}) != unitPriceCents × quantity (${line.unitPriceCents * line.quantity})`)
+        }
+        if (line.lineDiscountCents > line.lineListCents) {
+          addError(`${lineLabel}: lineDiscountCents (${line.lineDiscountCents}) supera lineListCents (${line.lineListCents})`)
+        }
+        if (line.lineNetCents !== line.lineListCents - line.lineDiscountCents) {
+          addError(`${lineLabel}: lineNetCents (${line.lineNetCents}) != lineListCents − lineDiscountCents`)
+        }
+        sumLineList += line.lineListCents
+        sumLineDiscount += line.lineDiscountCents
+      }
+    }
+
+    if (
+      linesAreNumbersValid &&
+      typeof raw.subtotalCents === 'number' &&
+      typeof raw.discountCents === 'number' &&
+      typeof raw.totalCents === 'number'
+    ) {
+      if (raw.subtotalCents !== sumLineList) {
+        addError(`${label}: subtotalCents (${raw.subtotalCents}) != suma de lineListCents (${sumLineList})`)
+      }
+      if (raw.discountCents > raw.subtotalCents) {
+        addError(`${label}: discountCents (${raw.discountCents}) supera subtotalCents (${raw.subtotalCents})`)
+      }
+      if (sumLineDiscount !== raw.discountCents) {
+        addError(`${label}: suma de lineDiscountCents (${sumLineDiscount}) != discountCents (${raw.discountCents})`)
+      }
+      if (raw.totalCents !== raw.subtotalCents - raw.discountCents) {
+        addError(`${label}: totalCents (${raw.totalCents}) != subtotalCents − discountCents (${raw.subtotalCents - raw.discountCents})`)
+      }
+    }
+  }
+
+  // 7. Validar ajustes de stock, unicidad e integridad referencial
+  const adjIds = new Set<string>()
+  for (let i = 0; i < obj.adjustments.length; i++) {
+    const raw = obj.adjustments[i]
+    const label = `Ajuste #${i + 1}`
+    if (!isRecord(raw)) {
+      addError(`${label}: no es un objeto válido`)
+      continue
+    }
+    if (!isNonEmptyString(raw.id)) {
+      addError(`${label}: id ausente o inválido`)
+    } else if (adjIds.has(raw.id)) {
+      addError(`${label} (${raw.id}): id de ajuste duplicado`)
+    } else {
+      adjIds.add(raw.id)
+    }
+    if (!isValidIsoDateString(raw.createdAt)) {
+      addError(`${label}: createdAt no es una fecha ISO válida`)
+    }
+    if (!isNonEmptyString(raw.itemId) || !itemIds.has(raw.itemId)) {
+      addError(`${label}: itemId (${String(raw.itemId)}) no referencia un artículo existente`)
+    }
+    if (typeof raw.delta !== 'number' || !Number.isInteger(raw.delta)) {
+      addError(`${label}: delta debe ser un número entero`)
+    }
+    if (typeof raw.reason !== 'string' || !VALID_ADJUSTMENT_REASONS.has(raw.reason)) {
+      addError(`${label}: reason inválido (${String(raw.reason)})`)
+    }
+    if (raw.note !== undefined && typeof raw.note !== 'string') {
+      addError(`${label}: note debe ser texto si está presente`)
+    }
+  }
+
+  if (errors.length > 0) {
+    return {
+      valid: false,
+      error: `Archivo inválido (${errors.length} error(es)): ${errors.join(' | ')}`,
+      errors,
+    }
   }
 
   const payload: BackupPayload = migrateBackupPayload({
@@ -129,12 +408,13 @@ export function migrateBackupPayload(payload: BackupPayload): BackupPayload {
  */
 export function parseAndValidateBackup(
   jsonString: string,
-): { valid: true; payload: BackupPayload } | { valid: false; error: string } {
+): BackupValidationResult {
   try {
     const data = JSON.parse(jsonString)
     return validateBackupPayload(data)
   } catch {
-    return { valid: false, error: 'El archivo no contiene un JSON válido o está dañado' }
+    const msg = 'El archivo no contiene un JSON válido o está dañado'
+    return { valid: false, error: msg, errors: [msg] }
   }
 }
 
@@ -250,10 +530,17 @@ export async function getLocalBackups(
 // ---------------------------------------------------------------------------
 
 async function applyBackupPayload(
-  payload: BackupPayload,
+  rawPayload: BackupPayload,
   reason: LocalBackup['reason'],
   dbInstance: MercaMesaDB = defaultDb,
 ): Promise<ImportSummary> {
+  // 0. Validar todo o nada antes de tocar la base de datos ni crear backups (A2)
+  const validation = validateBackupPayload(rawPayload)
+  if (!validation.valid) {
+    throw new Error(validation.error)
+  }
+  const payload = validation.payload
+
   // 1. Guardar copia previa innegociable
   await saveLocalBackup(reason, dbInstance)
 
@@ -308,12 +595,16 @@ async function applyBackupPayload(
     }
   }
 
+  // 4. Comprobar consistencia de inventario tras importar sin corregir en silencio (A2)
+  const inconsistencies = await verifyStockConsistency(dbInstance)
+
   return {
     categoriesCount: payload.categories.length,
     itemsCount: payload.items.length,
     salesCount: payload.sales.length,
     adjustmentsCount: payload.adjustments.length,
     exportedAt: payload.exportedAt,
+    inconsistencies,
   }
 }
 

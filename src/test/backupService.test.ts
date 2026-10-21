@@ -11,7 +11,7 @@ import {
   resetAllData,
   type BackupPayload,
 } from '@/services/backupService'
-import { createItem, adjustStock, verifyStockConsistency } from '@/services/itemService'
+import { createItem, adjustStock, verifyStockConsistency, repairStockInconsistencies } from '@/services/itemService'
 import { getActiveCategories } from '@/services/categoryService'
 import { checkoutSale } from '@/services/saleService'
 
@@ -96,6 +96,295 @@ describe('backupService (RF-C6, RF-C7, RF-C11)', () => {
       expect(validateBackupPayload({ ...validData, items: 'not an array' }).valid).toBe(false)
       expect(validateBackupPayload({ ...validData, sales: {} }).valid).toBe(false)
       expect(validateBackupPayload({ ...validData, adjustments: undefined }).valid).toBe(false)
+    })
+
+    it('rechaza registros con campos obligatorios ausentes o tipos/rangos erróneos (A2)', () => {
+      // Precio decimal o <= 0
+      const badPrice = {
+        ...validData,
+        items: [
+          {
+            id: 'item-1',
+            name: 'Collar',
+            categoryId: 'cat-1',
+            priceCents: 12.5,
+            stock: 3,
+            archived: false,
+            createdAt: '2026-10-16T12:00:00.000Z',
+            updatedAt: '2026-10-16T12:00:00.000Z',
+          },
+        ],
+      }
+      expect(validateBackupPayload(badPrice).valid).toBe(false)
+
+      // Stock decimal
+      const badStock = {
+        ...validData,
+        items: [
+          {
+            id: 'item-1',
+            name: 'Collar',
+            categoryId: 'cat-1',
+            priceCents: 1200,
+            stock: 1.5,
+            archived: false,
+            createdAt: '2026-10-16T12:00:00.000Z',
+            updatedAt: '2026-10-16T12:00:00.000Z',
+          },
+        ],
+      }
+      expect(validateBackupPayload(badStock).valid).toBe(false)
+
+      // Fecha ISO inválida
+      const badDate = {
+        ...validData,
+        items: [
+          {
+            id: 'item-1',
+            name: 'Collar',
+            categoryId: 'cat-1',
+            priceCents: 1200,
+            stock: 2,
+            archived: false,
+            createdAt: 'no-es-fecha',
+            updatedAt: '2026-10-16T12:00:00.000Z',
+          },
+        ],
+      }
+      expect(validateBackupPayload(badDate).valid).toBe(false)
+    })
+
+    it('rechaza IDs duplicados dentro de una misma colección (A2)', () => {
+      const dupCategories = {
+        ...validData,
+        categories: [
+          { id: 'cat-1', name: 'Pendientes', sortOrder: 0, archived: false },
+          { id: 'cat-1', name: 'Repetida', sortOrder: 1, archived: false },
+        ],
+      }
+      const res = validateBackupPayload(dupCategories)
+      expect(res.valid).toBe(false)
+      if (!res.valid) {
+        expect(res.error).toMatch(/duplicado/i)
+      }
+    })
+
+    it('rechaza referencias rotas en artículos, líneas de venta y ajustes (A2)', () => {
+      // item.categoryId inexistente
+      const brokenCatRef = {
+        ...validData,
+        items: [
+          {
+            id: 'item-1',
+            name: 'Collar',
+            categoryId: 'cat-inexistente',
+            priceCents: 1000,
+            stock: 1,
+            archived: false,
+            createdAt: '2026-10-16T12:00:00.000Z',
+            updatedAt: '2026-10-16T12:00:00.000Z',
+          },
+        ],
+      }
+      expect(validateBackupPayload(brokenCatRef).valid).toBe(false)
+
+      // adjustment.itemId inexistente
+      const brokenAdjRef = {
+        ...validData,
+        adjustments: [
+          {
+            id: 'adj-1',
+            itemId: 'item-fantasma',
+            createdAt: '2026-10-16T12:00:00.000Z',
+            delta: 5,
+            reason: 'initial' as const,
+          },
+        ],
+      }
+      expect(validateBackupPayload(brokenAdjRef).valid).toBe(false)
+
+      // sale.lines[].itemId inexistente
+      const brokenSaleRef = {
+        ...validData,
+        sales: [
+          {
+            id: 'sale-1',
+            createdAt: '2026-10-16T12:05:00.000Z',
+            lines: [
+              {
+                itemId: 'item-fantasma',
+                nameSnapshot: 'Fantasma',
+                categoryIdSnapshot: 'cat-1',
+                unitPriceCents: 500,
+                quantity: 1,
+                lineListCents: 500,
+                lineDiscountCents: 0,
+                lineNetCents: 500,
+              },
+            ],
+            subtotalCents: 500,
+            discountCents: 0,
+            totalCents: 500,
+            status: 'active' as const,
+          },
+        ],
+      }
+      expect(validateBackupPayload(brokenSaleRef).valid).toBe(false)
+    })
+
+    it('rechaza ventas con importes o descuentos incoherentes (A2)', () => {
+      const baseWithItem = {
+        ...validData,
+        items: [
+          {
+            id: 'item-1',
+            name: 'Anillo',
+            categoryId: 'cat-1',
+            priceCents: 1000,
+            stock: 5,
+            archived: false,
+            createdAt: '2026-10-16T12:00:00.000Z',
+            updatedAt: '2026-10-16T12:00:00.000Z',
+          },
+        ],
+      }
+
+      // Descuento de línea no suma igual a discountCents de la venta
+      const badDiscountSum = {
+        ...baseWithItem,
+        sales: [
+          {
+            id: 'sale-1',
+            createdAt: '2026-10-16T12:05:00.000Z',
+            lines: [
+              {
+                itemId: 'item-1',
+                nameSnapshot: 'Anillo',
+                categoryIdSnapshot: 'cat-1',
+                unitPriceCents: 1000,
+                quantity: 2,
+                lineListCents: 2000,
+                lineDiscountCents: 100, // dice 100 pero la venta dice 300
+                lineNetCents: 1900,
+              },
+            ],
+            subtotalCents: 2000,
+            discountCents: 300,
+            totalCents: 1700,
+            status: 'active' as const,
+          },
+        ],
+      }
+      const res = validateBackupPayload(badDiscountSum)
+      expect(res.valid).toBe(false)
+
+      // totalCents != subtotalCents - discountCents
+      const badTotal = {
+        ...baseWithItem,
+        sales: [
+          {
+            id: 'sale-1',
+            createdAt: '2026-10-16T12:05:00.000Z',
+            lines: [
+              {
+                itemId: 'item-1',
+                nameSnapshot: 'Anillo',
+                categoryIdSnapshot: 'cat-1',
+                unitPriceCents: 1000,
+                quantity: 1,
+                lineListCents: 1000,
+                lineDiscountCents: 0,
+                lineNetCents: 1000,
+              },
+            ],
+            subtotalCents: 1000,
+            discountCents: 0,
+            totalCents: 900,
+            status: 'active' as const,
+          },
+        ],
+      }
+      expect(validateBackupPayload(badTotal).valid).toBe(false)
+    })
+
+    it('limita el resumen de errores a un máximo de 10 mensajes y no modifica la BD si la importación falla (todo o nada, A2)', async () => {
+      const cats = await getActiveCategories(testDb)
+      await createItem(
+        { name: 'Artículo previo intacto', categoryId: cats[0]!.id, priceCents: 500, stockInitial: 3 },
+        testDb,
+      )
+
+      const manyInvalidItems = Array.from({ length: 15 }, (_, idx) => ({
+        id: `bad-${idx}`,
+        name: '',
+        categoryId: 'no-existe',
+        priceCents: -10,
+        stock: 1.2,
+        archived: false,
+        createdAt: 'bad-date',
+        updatedAt: 'bad-date',
+      }))
+
+      const invalidPayload = {
+        ...validData,
+        items: manyInvalidItems,
+      } as unknown as BackupPayload
+
+      const validation = validateBackupPayload(invalidPayload)
+      expect(validation.valid).toBe(false)
+      if (!validation.valid) {
+        expect(validation.errors?.length).toBeLessThanOrEqual(10)
+      }
+
+      await expect(importBackupPayload(invalidPayload, testDb)).rejects.toThrow()
+
+      // La BD sigue intacta con el artículo previo
+      const itemsAfter = await testDb.items.toArray()
+      expect(itemsAfter).toHaveLength(1)
+      expect(itemsAfter[0]?.name).toBe('Artículo previo intacto')
+    })
+
+    it('detecta discrepancias de stock tras importar sin corregirlas en silencio (A2)', async () => {
+      const payloadWithDiscrepancy: BackupPayload = {
+        ...validData,
+        items: [
+          {
+            id: 'item-disc',
+            name: 'Pulsera con desajuste',
+            categoryId: 'cat-1',
+            priceCents: 1000,
+            stock: 99, // El ajuste inicial dice 5, pero el stock dice 99
+            archived: false,
+            createdAt: '2026-10-16T12:00:00.000Z',
+            updatedAt: '2026-10-16T12:00:00.000Z',
+          },
+        ],
+        adjustments: [
+          {
+            id: 'adj-disc',
+            itemId: 'item-disc',
+            createdAt: '2026-10-16T12:00:00.000Z',
+            delta: 5,
+            reason: 'initial',
+          },
+        ],
+      }
+
+      const summary = await importBackupPayload(payloadWithDiscrepancy, testDb)
+      expect(summary.inconsistencies).toHaveLength(1)
+      expect(summary.inconsistencies[0]?.expected).toBe(5)
+      expect(summary.inconsistencies[0]?.actual).toBe(99)
+
+      // No se ha corregido en silencio: en la BD sigue siendo 99 hasta que el usuario repare
+      const itemInDb = await testDb.items.get('item-disc')
+      expect(itemInDb?.stock).toBe(99)
+
+      // Al ejecutar la reparación explícita, el stock se alinea con el historial (5)
+      const repairedCount = await repairStockInconsistencies(testDb)
+      expect(repairedCount).toBe(1)
+      const itemAfterRepair = await testDb.items.get('item-disc')
+      expect(itemAfterRepair?.stock).toBe(5)
+      expect(await verifyStockConsistency(testDb)).toHaveLength(0)
     })
   })
 

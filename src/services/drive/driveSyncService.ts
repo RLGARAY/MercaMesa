@@ -14,11 +14,13 @@ import type { DriveClient, RemoteFileMeta } from './driveClient'
 import {
   createBackupPayload,
   parseAndValidateBackup,
+  validateBackupPayload,
   saveLocalBackup,
   CART_STORAGE_KEY,
   type BackupPayload,
   type ImportSummary,
 } from '@/services/backupService'
+import { verifyStockConsistency } from '@/services/itemService'
 import { db as defaultDb, type MercaMesaDB, SCHEMA_VERSION, META_KEY } from '@/db/db'
 import type { Meta } from '@/types'
 
@@ -147,6 +149,7 @@ export async function fetchDriveRestorePreview(
       salesCount: payload.sales.length,
       adjustmentsCount: payload.adjustments.length,
       exportedAt: payload.exportedAt,
+      inconsistencies: [],
     },
   }
 }
@@ -159,7 +162,12 @@ export async function applyDriveRestore(
   preview: DriveRestorePreview,
   dbInstance: MercaMesaDB = defaultDb,
 ): Promise<ImportSummary> {
-  const { payload, remoteMeta } = preview
+  const { remoteMeta } = preview
+  const validation = validateBackupPayload(preview.payload)
+  if (!validation.valid) {
+    throw new Error(validation.error)
+  }
+  const payload = validation.payload
 
   // 1. Guardar copia de seguridad previa innegociable
   await saveLocalBackup('before-restore', dbInstance)
@@ -216,12 +224,16 @@ export async function applyDriveRestore(
     }
   }
 
+  // 4. Comprobar consistencia tras restaurar sin corregir en silencio (A2)
+  const inconsistencies = await verifyStockConsistency(dbInstance)
+
   return {
     categoriesCount: payload.categories.length,
     itemsCount: payload.items.length,
     salesCount: payload.sales.length,
     adjustmentsCount: payload.adjustments.length,
     exportedAt: payload.exportedAt,
+    inconsistencies,
   }
 }
 

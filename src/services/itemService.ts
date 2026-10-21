@@ -334,3 +334,27 @@ export async function verifyStockConsistency(
 
   return inconsistencies
 }
+
+/**
+ * Repara a petición explícita del usuario las discrepancias matemáticas de inventario,
+ * actualizando el stock de cada artículo inconsistente al valor esperado según su historial
+ * en una única transacción atómica Dexie (A2, RF-C10).
+ */
+export async function repairStockInconsistencies(
+  dbInstance: MercaMesaDB = defaultDb,
+): Promise<number> {
+  const issues = await verifyStockConsistency(dbInstance)
+  if (issues.length === 0) return 0
+
+  const now = new Date().toISOString()
+  await dbInstance.transaction('rw', dbInstance.items, async () => {
+    for (const issue of issues) {
+      await dbInstance.items.update(issue.item.id, {
+        stock: issue.expected,
+        updatedAt: now,
+      })
+    }
+  })
+
+  return issues.length
+}

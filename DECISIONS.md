@@ -41,13 +41,13 @@
 
 ---
 
-### 2026-10-16 — "Corregir inventario" = ajuste manual (RF-C1), no reparación automática
+### 2026-10-16 — "Corregir inventario" = ajuste manual (RF-C1), y reparación explícita bajo confirmación (RF-C10, A2)
 
-**Decisión:** La función `verifyStockConsistency()` (RF-C10) es una herramienta de diagnóstico técnico que comprueba la consistencia matemática interna (`stock = suma(ajustes) − suma(ventas activas)`). El flujo de "corrección" para el usuario es RF-C1: pantalla de ajuste manual de stock donde el usuario introduce el valor real. No hay reparación automática.
+**Decisión:** La función `verifyStockConsistency()` (RF-C10) comprueba la consistencia matemática interna (`stock = suma(ajustes) − suma(ventas activas)`). Si al ejecutarla en Ajustes o tras importar/restaurar una copia se detectan discrepancias, nunca se corrigen en silencio: se muestra el informe detallado y un botón explícito ("Reparar discrepancias") para que el usuario decida si alinear el stock con el historial (`repairStockInconsistencies`) o ajustarlo manualmente en RF-C1.
 
-**Motivo:** El stock es físico. Solo el usuario sabe cuántas unidades tiene realmente. Cualquier "reparación automática" sería inventada por la app, no basada en la realidad.
+**Motivo:** El stock es físico y nunca debe mutar a espaldas del usuario, pero tras una importación o diagnóstico el usuario necesita un botón explícito para reparar discrepancias si así lo confirma (SPEC sección 4 y A2).
 
-**Alternativa descartada:** Auto-corrección que calcula el delta y crea un ajuste automático (frágil, confuso para el usuario).
+**Alternativa descartada:** Auto-corrección silenciosa sin informar al usuario.
 
 ---
 

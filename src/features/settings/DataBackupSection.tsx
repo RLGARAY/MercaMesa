@@ -9,7 +9,9 @@ import {
   restoreLocalBackup,
   resetAllData,
   type BackupPayload,
+  type StockInconsistency,
 } from '@/services/backupService'
+import { repairStockInconsistencies } from '@/services/itemService'
 import { checkStoragePersistence } from '@/utils/pwaUtils'
 import { GoogleDriveClient } from '@/services/drive/driveClient'
 import { requestGoogleAccessToken, hasGoogleClientId } from '@/services/drive/auth'
@@ -51,6 +53,9 @@ export default function DataBackupSection() {
   // Estado para modal de borrado total (zona de peligro)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [deleteConfirmationText, setDeleteConfirmationText] = useState('')
+
+  // Estado para discrepancias de stock detectadas tras importar o restaurar (A2)
+  const [postImportInconsistencies, setPostImportInconsistencies] = useState<StockInconsistency[]>([])
 
   const loadBackups = async () => {
     try {
@@ -130,8 +135,9 @@ export default function DataBackupSection() {
     if (!pendingPayload) return
     try {
       setLoading(true)
-      await importBackupPayload(pendingPayload)
+      const summary = await importBackupPayload(pendingPayload)
       setPendingPayload(null)
+      setPostImportInconsistencies(summary.inconsistencies)
       if (fileInputRef.current) fileInputRef.current.value = ''
       await loadBackups()
       await refreshSyncInfo()
@@ -154,8 +160,9 @@ export default function DataBackupSection() {
     if (!backupToRestore) return
     try {
       setLoading(true)
-      await restoreLocalBackup(backupToRestore.id)
+      const summary = await restoreLocalBackup(backupToRestore.id)
       setBackupToRestore(null)
+      setPostImportInconsistencies(summary.inconsistencies)
       await loadBackups()
       await refreshSyncInfo()
       setStatusMessage({
@@ -245,13 +252,33 @@ export default function DataBackupSection() {
     if (!driveRestorePreview) return
     try {
       setLoading(true)
-      await applyDriveRestore(driveRestorePreview)
+      const summary = await applyDriveRestore(driveRestorePreview)
       setDriveRestorePreview(null)
+      setPostImportInconsistencies(summary.inconsistencies)
       await refreshSyncInfo()
       await loadBackups()
       setStatusMessage({
         type: 'success',
         text: UI.settings.driveRestoreSuccess,
+      })
+    } catch (err) {
+      setStatusMessage({
+        type: 'error',
+        text: err instanceof Error ? err.message : UI.errors.generic,
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleRepairPostImport = async () => {
+    try {
+      setLoading(true)
+      await repairStockInconsistencies()
+      setPostImportInconsistencies([])
+      setStatusMessage({
+        type: 'success',
+        text: 'Discrepancias de inventario reparadas correctamente.',
       })
     } catch (err) {
       setStatusMessage({
@@ -314,6 +341,46 @@ export default function DataBackupSection() {
         >
           {statusMessage.type === 'success' ? '✅ ' : '⚠️ '}
           {statusMessage.text}
+        </div>
+      )}
+
+      {/* Informe de discrepancias de stock tras importar/restaurar con botón explícito (A2) */}
+      {postImportInconsistencies.length > 0 && (
+        <div
+          role="alert"
+          className="p-4 bg-amber-50 border border-amber-200 rounded-2xl text-amber-900 text-xs space-y-3"
+        >
+          <div className="font-bold text-amber-800">
+            ⚠️ Se han detectado {postImportInconsistencies.length} discrepancia(s) de stock en los datos importados:
+          </div>
+          <div className="divide-y divide-amber-200/60">
+            {postImportInconsistencies.map(({ item, expected, actual }) => (
+              <div key={item.id} className="py-1.5 flex items-center justify-between">
+                <span className="font-semibold text-gray-900">{item.name}</span>
+                <span className="text-[11px] text-gray-700">
+                  Esperado: <strong>{expected}</strong> · En archivo: <strong>{actual}</strong>
+                </span>
+              </div>
+            ))}
+          </div>
+          <div className="flex gap-2 pt-1">
+            <button
+              type="button"
+              onClick={handleRepairPostImport}
+              disabled={loading}
+              className="flex-1 min-h-12 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-xl px-3 py-2 transition-colors disabled:opacity-50"
+            >
+              Reparar discrepancias
+            </button>
+            <button
+              type="button"
+              onClick={() => setPostImportInconsistencies([])}
+              disabled={loading}
+              className="min-h-12 px-3 py-2 border border-amber-300 text-amber-900 font-semibold rounded-xl hover:bg-amber-100 transition-colors"
+            >
+              Ignorar por ahora
+            </button>
+          </div>
         </div>
       )}
 
