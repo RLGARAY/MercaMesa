@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, type FormEvent } from 'react'
 import type { Category, Item, ID } from '@/types'
 import { UI } from '@/i18n'
-import { formatCents, centsToEuros } from '@/domain/money'
+import { formatCents, formatCentsToEurosInput } from '@/domain/money'
 import {
   validateItemName,
   validateAndParsePriceString,
@@ -35,7 +35,7 @@ export default function ItemForm({
     item?.categoryId ?? categories[0]?.id ?? '',
   )
   const [priceStr, setPriceStr] = useState(
-    item ? String(centsToEuros(item.priceCents)) : '',
+    item ? formatCentsToEurosInput(item.priceCents) : '',
   )
   const [stockStr, setStockStr] = useState(
     item ? String(item.stock) : '0',

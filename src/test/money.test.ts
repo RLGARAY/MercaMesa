@@ -10,7 +10,12 @@
  *   centsToEuros: conversión básica
  */
 import { describe, it, expect } from 'vitest'
-import { formatCents, parseCentsFromString, centsToEuros } from '@/domain/money'
+import {
+  formatCents,
+  formatCentsToEurosInput,
+  parseCentsFromString,
+  centsToEuros,
+} from '@/domain/money'
 
 describe('formatCents', () => {
   it('formatea cero como "0,00 €"', () => {
@@ -81,12 +86,16 @@ describe('parseCentsFromString', () => {
     expect(parseCentsFromString('1.50€')).toBeNull()
   })
 
-  it('parsea y redondea al céntimo más cercano (3 decimales)', () => {
-    // Nota: 1.005 en IEEE 754 es en realidad 1.00499999... por lo que
-    // 1.005 * 100 = 100.4999... → Math.round → 100 (no 101).
-    // Esto es comportamiento estándar de JavaScript con floats.
-    // Para importes reales (0 o 1 decimal en euros) esto no es un problema.
-    expect(parseCentsFromString('1.005')).toBe(100)
+  it('rechaza más de 2 decimales ("1.005", "1,234", "100.000") (C3, #8)', () => {
+    expect(parseCentsFromString('1.005')).toBeNull()
+    expect(parseCentsFromString('1,234')).toBeNull()
+    expect(parseCentsFromString('100.000')).toBeNull()
+  })
+
+  it('rechaza notación exponencial ("1e2", "1.5e1") (C3, #8)', () => {
+    expect(parseCentsFromString('1e2')).toBeNull()
+    expect(parseCentsFromString('1E2')).toBeNull()
+    expect(parseCentsFromString('1.5e1')).toBeNull()
   })
 
   it('ignora espacios alrededor del número', () => {
@@ -96,13 +105,24 @@ describe('parseCentsFromString', () => {
   it('parsea importes negativos ("-0,50" → -50)', () => {
     expect(parseCentsFromString('-0,50')).toBe(-50)
   })
+})
 
-  it('parsea importes grandes ("100.000" → 10.000.000 céntimos)', () => {
-    // Nota: este es un caso límite; el punto aquí es separador de miles en es-ES
-    // pero en nuestro parser lo tratamos como punto decimal.
-    // Para importes grandes el usuario no debería usar separador de miles.
-    // Lo documentamos: parseCentsFromString("100.000") = 10000 (no 10.000.000)
-    expect(parseCentsFromString('100.000')).toBe(10000) // 100.000 € con punto → 100 € → 10000 céntimos
+describe('formatCentsToEurosInput y round-trip exhaustivo (C3, #8)', () => {
+  it('formatea desde céntimos enteros con aritmética entera ("5" o "5,50")', () => {
+    expect(formatCentsToEurosInput(0)).toBe('0')
+    expect(formatCentsToEurosInput(500)).toBe('5')
+    expect(formatCentsToEurosInput(550)).toBe('5,50')
+    expect(formatCentsToEurosInput(505)).toBe('5,05')
+  })
+
+  it('round-trip exhaustivo: formatear → parsear devuelve el mismo importe para todo valor de 0 a 100.000 céntimos', () => {
+    for (let cents = 0; cents <= 100_000; cents++) {
+      const formatted = formatCentsToEurosInput(cents)
+      const parsed = parseCentsFromString(formatted)
+      if (parsed !== cents) {
+        throw new Error(`Fallo en round-trip para ${cents}: formatted="${formatted}", parsed=${String(parsed)}`)
+      }
+    }
   })
 })
 

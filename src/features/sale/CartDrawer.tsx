@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react'
 import type { Item, Sale } from '@/types'
 import { UI } from '@/i18n'
-import { formatCents, parseCentsFromString, centsToEuros } from '@/domain/money'
+import { formatCents, formatCentsToEurosInput, parseCentsFromString } from '@/domain/money'
 import {
   calculateDiscountCents,
   type DiscountMode,
@@ -114,12 +114,12 @@ export default function CartDrawer({
     }
   }, [discountEnabled, discountMode, discountValueStr, subtotalCents])
 
-  // Al activar el check de oferta por primera vez, sugerimos el subtotal en modo finalPrice
+  // Al activar el check de oferta por primera vez, sugerimos el subtotal en modo finalPrice usando aritmética entera (C3)
   const handleToggleDiscount = (enabled: boolean) => {
     setDiscountEnabled(enabled)
     if (enabled && !discountValueStr) {
       if (discountMode === 'finalPrice') {
-        setDiscountValueStr(String(centsToEuros(subtotalCents)))
+        setDiscountValueStr(formatCentsToEurosInput(subtotalCents))
       }
     }
   }
@@ -282,7 +282,7 @@ export default function CartDrawer({
                 onChange={(e) => setDiscountValueStr(e.target.value)}
                 placeholder={
                   discountMode === 'finalPrice'
-                    ? `Ej: ${centsToEuros(subtotalCents)}`
+                    ? `Ej: ${formatCentsToEurosInput(subtotalCents)}`
                     : discountMode === 'euros'
                     ? 'Ej: 1,50'
                     : 'Ej: 10'

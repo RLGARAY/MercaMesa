@@ -95,13 +95,11 @@ Se emplean colores y etiquetas de texto diferenciados para los tres estados de a
 
 ---
 
-### 2026-10-16 — parseCentsFromString: validación con regex antes de parseFloat
+### 2026-10-16 — parseCentsFromString y formatCentsToEurosInput: aritmética entera y máximo 2 decimales (C3, #8)
 
-**Decisión:** Se añade validación `/^-?\d+(\.\d+)?$/` antes de `parseFloat`.
+**Decisión:** `parseCentsFromString` valida con `/^-?\d+([.,]\d{1,2})?$/` (aceptando coma o punto decimal y rechazando exponentes o más de 2 decimales) y convierte a céntimos mediante aritmética entera (sin `parseFloat`). Asimismo, `formatCentsToEurosInput` formatea desde céntimos enteros con aritmética entera (`500` → `"5"`, `550` → `"5,50"`), garantizando que `parseCentsFromString(formatCentsToEurosInput(c)) === c` de forma exacta.
 
-**Motivo:** `parseFloat('1.50€')` devuelve `1.5` ignorando el `€` — silencioso e incorrecto. La regex garantiza que solo se aceptan strings que son exclusivamente un número.
-
-**Aprendizaje:** `parseCentsFromString('1.005')` devuelve `100` (no `101`) por la imprecisión de IEEE 754: `1.005 * 100 = 100.4999...`. Para importes reales (máximo 2 decimales en euros) esto no es problema práctico. El test se corrigió para documentar el comportamiento real.
+**Motivo:** Evitar errores de redondeo IEEE 754, decimales largos o notación exponencial al prellenar precios y descuentos.
 
 ---
 
