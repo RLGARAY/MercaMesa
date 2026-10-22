@@ -78,7 +78,7 @@ export default function ItemForm({
       const thumb = await resizeImageToThumb(file)
       setImageThumb(thumb)
     } catch {
-      setErrors(prev => ({ ...prev, general: 'Error al procesar la imagen' }))
+      setErrors(prev => ({ ...prev, general: UI.items.errors.imageProcess }))
     } finally {
       setImageProcessing(false)
       // Limpiar input file para permitir seleccionar la misma imagen de nuevo si se desea
@@ -91,7 +91,7 @@ export default function ItemForm({
     setCatError(null)
     const trimmed = newCatName.trim()
     if (!trimmed) {
-      setCatError('El nombre no puede estar vacío')
+      setCatError(UI.items.errors.emptyCategoryName)
       return
     }
 
@@ -102,7 +102,7 @@ export default function ItemForm({
       setNewCatName('')
       setShowNewCatInput(false)
     } catch (err) {
-      setCatError(err instanceof Error ? err.message : 'Error al crear la categoría')
+      setCatError(err instanceof Error ? err.message : UI.items.errors.createCategoryError)
     }
   }
 
@@ -122,7 +122,7 @@ export default function ItemForm({
     if (nameErr) newErrors.name = nameErr
     if (priceRes.error) newErrors.price = priceRes.error
     if (stockRes && stockRes.error) newErrors.stock = stockRes.error
-    if (!categoryId) newErrors.general = 'Debes seleccionar una categoría'
+    if (!categoryId) newErrors.general = UI.items.errors.selectCategoryRequired
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors)
@@ -205,7 +205,7 @@ export default function ItemForm({
           {imageThumb ? (
             <img
               src={imageThumb}
-              alt="Vista previa"
+              alt={UI.items.imagePreviewAlt}
               className="w-full h-full object-cover"
             />
           ) : (
@@ -327,7 +327,7 @@ export default function ItemForm({
             inputMode="decimal"
             value={priceStr}
             onChange={(e) => setPriceStr(e.target.value)}
-            placeholder="Ej: 1,50"
+            placeholder={UI.items.pricePlaceholder}
             className="w-full px-3 py-3 border border-gray-300 rounded-lg text-base focus:ring-2 focus:ring-brand-500 focus:border-brand-500 pr-20"
             required
           />
@@ -348,10 +348,10 @@ export default function ItemForm({
         {isEditing ? (
           <div className="flex items-center justify-between p-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-600">
             <span>
-              Unidades actuales: <strong className="text-gray-900">{item?.stock}</strong>
+              {UI.items.currentUnitsLabel} <strong className="text-gray-900">{item?.stock}</strong>
             </span>
             <span className="text-xs text-gray-400">
-              (Se corrige en Ajustes)
+              {UI.items.correctedInSettingsHint}
             </span>
           </div>
         ) : (

@@ -97,11 +97,11 @@ export default function App() {
       <header className="flex items-center justify-between px-4 py-1.5 bg-gray-50/80 border-b border-gray-200 text-[11px] text-gray-500 shrink-0">
         <span className="font-bold text-gray-700 tracking-tight flex items-center gap-1.5">
           <span>🛒</span>
-          <span>MercaMesa</span>
+          <span>{UI.app.brand}</span>
         </span>
         <div
           className="flex items-center gap-1.5"
-          title={`Última sincronización con Google Drive: ${formattedRelative}`}
+          title={UI.app.lastSyncTitle(formattedRelative)}
         >
           <span aria-hidden="true" className="text-xs">☁️</span>
           <span>{formattedRelative}</span>
@@ -121,7 +121,7 @@ export default function App() {
       {/* Barra de navegación inferior fija */}
       <nav
         className="flex border-t border-gray-200 bg-white pb-safe"
-        aria-label="Navegación principal"
+        aria-label={UI.app.mainNavAria}
       >
         {tabs.map(({ id, label, Icon }) => (
           <button

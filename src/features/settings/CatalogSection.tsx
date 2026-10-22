@@ -121,7 +121,7 @@ export default function CatalogSection() {
             type="button"
             onClick={() => setCategoryError(null)}
             className="text-red-500 font-bold ml-2 p-1"
-            aria-label="Cerrar aviso"
+            aria-label={UI.common.closeNoticeAria}
           >
             ✕
           </button>
@@ -133,7 +133,7 @@ export default function CatalogSection() {
         <div className="flex items-center justify-between mb-3 border-b border-gray-100 pb-2">
           <div>
             <h2 className="text-lg font-bold text-gray-900">{UI.settings.categoriesTitle}</h2>
-            <p className="text-xs text-gray-500">Crea, renombra o cambia el orden en la pantalla de venta</p>
+            <p className="text-xs text-gray-500">{UI.settings.categoriesSubtitle}</p>
           </div>
           <button
             type="button"
@@ -203,7 +203,7 @@ export default function CatalogSection() {
                     type="button"
                     onClick={() => handleArchiveCategory(cat)}
                     aria-label={`Archivar ${cat.name}`}
-                    title={itemCount > 0 ? 'No se puede archivar con artículos activos' : undefined}
+                    title={itemCount > 0 ? UI.settings.cannotArchiveWithActiveItems : undefined}
                     className="w-12 h-12 min-w-[48px] min-h-[48px] flex items-center justify-center text-gray-400 hover:text-rose-600 rounded-xl active:bg-gray-100 text-xs font-semibold transition-colors"
                   >
                     🗑️
@@ -222,7 +222,9 @@ export default function CatalogSection() {
               onClick={() => setShowArchivedCategories(!showArchivedCategories)}
               className="text-xs font-semibold text-gray-500 hover:text-gray-700 py-1"
             >
-              {showArchivedCategories ? 'Ocultar archivadas' : `Ver categorías archivadas (${archivedCategories.length})`}
+              {showArchivedCategories
+                ? UI.settings.hideArchivedCategories
+                : UI.settings.viewArchivedCategories(archivedCategories.length)}
             </button>
 
             {showArchivedCategories && (
@@ -248,7 +250,7 @@ export default function CatalogSection() {
       {/* SECCIÓN: ARTÍCULOS ARCHIVADOS (RF-C5) */}
       <section className="bg-white rounded-2xl border border-gray-200 p-4 shadow-sm text-left">
         <h2 className="text-lg font-bold text-gray-900 mb-1">{UI.settings.archivedItemsTitle}</h2>
-        <p className="text-xs text-gray-500 mb-3">Artículos retirados que mantienen su historial</p>
+        <p className="text-xs text-gray-500 mb-3">{UI.settings.archivedItemsSubtitle}</p>
 
         {!archivedItems || archivedItems.length === 0 ? (
           <p className="text-sm text-gray-400 py-2">{UI.settings.noArchivedItems}</p>
@@ -258,7 +260,7 @@ export default function CatalogSection() {
               <div key={item.id} className="py-3 flex items-center justify-between gap-3">
                 <div className="min-w-0 flex-1">
                   <h3 className="font-semibold text-gray-700 text-sm truncate">{item.name}</h3>
-                  <span className="text-xs text-gray-400">{formatCents(item.priceCents)} · Stock: {item.stock}</span>
+                  <span className="text-xs text-gray-400">{formatCents(item.priceCents)} · {UI.sale.stockLabel(item.stock)}</span>
                 </div>
                 <button
                   type="button"
@@ -282,14 +284,14 @@ export default function CatalogSection() {
         <div className="flex flex-col gap-4 text-left">
           <div>
             <label htmlFor="new-cat-input" className="block text-sm font-medium text-gray-700 mb-1">
-              Nombre de la categoría
+              {UI.settings.categoryNameLabel}
             </label>
             <input
               id="new-cat-input"
               type="text"
               value={newCatName}
               onChange={(e) => setNewCatName(e.target.value)}
-              placeholder="Ej: Cerámica"
+              placeholder={UI.settings.categoryNamePlaceholder}
               className="w-full px-3 py-3 border border-gray-300 rounded-lg text-base"
               autoFocus
             />
@@ -306,7 +308,7 @@ export default function CatalogSection() {
 
       {/* Modal Renombrar Categoría */}
       <Modal
-        title="Renombrar categoría"
+        title={UI.settings.renameCategoryTitle}
         isOpen={Boolean(editingCategory)}
         onClose={() => setEditingCategory(null)}
       >

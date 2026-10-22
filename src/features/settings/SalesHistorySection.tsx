@@ -84,7 +84,7 @@ export default function SalesHistorySection() {
         <div className="flex items-center justify-between gap-2">
           <div>
             <h2 className="text-lg font-bold text-gray-900">{UI.settings.salesHistory}</h2>
-            <p className="text-xs text-gray-500">Historial completo de cobros y opción de anulación</p>
+            <p className="text-xs text-gray-500">{UI.settings.salesHistorySubtitle}</p>
           </div>
           <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-gray-600 shrink-0">
             <input
@@ -93,7 +93,7 @@ export default function SalesHistorySection() {
               onChange={(e) => setShowUndoSales(e.target.checked)}
               className="rounded border-gray-300 text-brand-600"
             />
-            <span>Mostrar deshechas</span>
+            <span>{UI.settings.showUndoSales}</span>
           </label>
         </div>
 
@@ -110,7 +110,7 @@ export default function SalesHistorySection() {
                   : 'text-gray-600'
               }`}
             >
-              Todas ({baseSales.length})
+              {UI.settings.filterAllSales(baseSales.length)}
             </button>
             <button
               type="button"
@@ -121,7 +121,7 @@ export default function SalesHistorySection() {
                   : 'text-gray-600'
               }`}
             >
-              Activas
+              {UI.settings.filterActiveSales}
             </button>
             <button
               type="button"
@@ -132,7 +132,7 @@ export default function SalesHistorySection() {
                   : 'text-gray-600'
               }`}
             >
-              Anuladas
+              {UI.settings.filterVoidedSales}
             </button>
           </div>
 
@@ -142,7 +142,7 @@ export default function SalesHistorySection() {
               type="date"
               value={dateFilter}
               onChange={(e) => setDateFilter(e.target.value)}
-              aria-label="Filtrar por fecha"
+              aria-label={UI.settings.filterByDateAria}
               className="px-2.5 py-1.5 text-xs bg-white border border-gray-300 rounded-lg min-h-10"
             />
             {dateFilter && (
@@ -151,7 +151,7 @@ export default function SalesHistorySection() {
                 onClick={() => setDateFilter('')}
                 className="text-xs text-brand-600 hover:text-brand-700 font-semibold px-2 py-1"
               >
-                Limpiar
+                {UI.settings.clearFilter}
               </button>
             )}
           </div>
@@ -161,7 +161,7 @@ export default function SalesHistorySection() {
       {/* Lista de ventas */}
       <div className="divide-y divide-gray-100 bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
         {filteredSales.length === 0 ? (
-          <p className="p-8 text-center text-gray-400 text-sm">No hay ventas registradas para este filtro.</p>
+          <p className="p-8 text-center text-gray-400 text-sm">{UI.settings.noSalesForFilter}</p>
         ) : (
           filteredSales.map((sale) => {
             const isVoided = sale.status === 'voided'
@@ -185,11 +185,11 @@ export default function SalesHistorySection() {
                     </span>
                     {isVoided ? (
                       <span className="text-[10px] font-bold text-red-700 bg-red-100 px-1.5 py-0.5 rounded">
-                        {sale.voidReason === 'undo' ? 'Deshecha' : 'Anulada'}
+                        {sale.voidReason === 'undo' ? UI.settings.statusUndone : UI.settings.statusVoided}
                       </span>
                     ) : (
                       <span className="text-[10px] font-bold text-green-700 bg-green-100 px-1.5 py-0.5 rounded">
-                        Cobrada
+                        {UI.settings.statusCharged}
                       </span>
                     )}
                   </div>
@@ -207,7 +207,7 @@ export default function SalesHistorySection() {
                   >
                     {formatCents(sale.totalCents)}
                   </span>
-                  <span className="text-gray-400 text-xs block">Ver detalle →</span>
+                  <span className="text-gray-400 text-xs block">{UI.settings.viewDetail}</span>
                 </div>
               </button>
             )
@@ -217,7 +217,7 @@ export default function SalesHistorySection() {
 
       {/* MODAL: DETALLE Y ANULACIÓN DE VENTA (RF-C3, RN-6) */}
       <Modal
-        title={selectedSale ? `Detalle de venta` : ''}
+        title={selectedSale ? UI.stats.saleDetailTitle : ''}
         isOpen={Boolean(selectedSale)}
         onClose={() => {
           setSelectedSale(null)
@@ -235,20 +235,20 @@ export default function SalesHistorySection() {
             {/* Cabecera del detalle */}
             <div className="p-3 bg-gray-50 rounded-xl border border-gray-200 space-y-1">
               <div className="flex justify-between items-center">
-                <span className="text-xs text-gray-500">Fecha y hora</span>
+                <span className="text-xs text-gray-500">{UI.stats.dateTimeLabel}</span>
                 <span className="text-xs font-semibold text-gray-800">
                   {formatDateTime(selectedSale.createdAt)}
                 </span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-xs text-gray-500">Estado</span>
+                <span className="text-xs text-gray-500">{UI.settings.statusLabel}</span>
                 {selectedSale.status === 'voided' ? (
                   <span className="text-xs font-bold text-red-600 bg-red-50 px-2 py-0.5 rounded">
-                    Anulada {selectedSale.voidedAt && `el ${formatDateTime(selectedSale.voidedAt)}`}
+                    {UI.settings.statusVoided} {selectedSale.voidedAt && `el ${formatDateTime(selectedSale.voidedAt)}`}
                   </span>
                 ) : (
                   <span className="text-xs font-bold text-green-700 bg-green-50 px-2 py-0.5 rounded">
-                    Activa
+                    {UI.settings.statusActive}
                   </span>
                 )}
               </div>
@@ -257,7 +257,7 @@ export default function SalesHistorySection() {
             {/* Desglose de líneas (Snapshots inmutables, RN-7) */}
             <div className="space-y-2">
               <h3 className="text-xs font-bold text-gray-700 uppercase tracking-wider">
-                Artículos vendidos
+                {UI.settings.soldItemsHeading}
               </h3>
               <div className="divide-y divide-gray-100 border border-gray-200 rounded-xl overflow-hidden bg-white">
                 {selectedSale.lines.map((line, idx) => (
@@ -282,17 +282,17 @@ export default function SalesHistorySection() {
             {/* Resumen financiero */}
             <div className="p-3 bg-gray-50 rounded-xl border border-gray-200 space-y-1.5 text-xs">
               <div className="flex justify-between text-gray-600">
-                <span>Subtotal lista</span>
+                <span>{UI.settings.listSubtotal}</span>
                 <span>{formatCents(selectedSale.subtotalCents)}</span>
               </div>
               {selectedSale.discountCents > 0 && (
                 <div className="flex justify-between text-green-700 font-semibold">
-                  <span>Descuento ticket</span>
+                  <span>{UI.settings.ticketDiscount}</span>
                   <span>-{formatCents(selectedSale.discountCents)}</span>
                 </div>
               )}
               <div className="flex justify-between text-base font-extrabold text-gray-900 pt-1 border-t border-gray-200">
-                <span>Total cobrado</span>
+                <span>{UI.stats.totalChargedLabel}</span>
                 <span className={selectedSale.status === 'voided' ? 'line-through text-gray-400' : 'text-brand-700'}>
                   {formatCents(selectedSale.totalCents)}
                 </span>
@@ -314,7 +314,7 @@ export default function SalesHistorySection() {
                         disabled={isVoiding}
                         className="flex-1 py-2.5 bg-red-600 hover:bg-red-700 active:bg-red-800 text-white font-bold rounded-lg text-xs min-h-12"
                       >
-                        {isVoiding ? UI.common.loading : 'Sí, anular venta'}
+                        {isVoiding ? UI.common.loading : UI.settings.confirmVoidSaleBtn}
                       </button>
                       <button
                         type="button"

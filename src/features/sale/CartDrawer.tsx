@@ -71,7 +71,7 @@ export default function CartDrawer({
       return {
         discountCents: 0,
         totalCents: subtotalCents,
-        error: 'Introduce un valor para el descuento',
+        error: UI.sale.discountErrors.empty,
         rawInput,
       }
     }
@@ -79,19 +79,19 @@ export default function CartDrawer({
     try {
       if (discountMode === 'finalPrice') {
         const cents = parseCentsFromString(trimmed)
-        if (cents === null) throw new Error('Introduce un precio final válido (ej: 5 o 4,50)')
+        if (cents === null) throw new Error(UI.sale.discountErrors.invalidFinalPrice)
         rawInput.value = cents
       } else if (discountMode === 'euros') {
         const cents = parseCentsFromString(trimmed)
-        if (cents === null) throw new Error('Introduce un descuento válido en € (ej: 2 o 1,50)')
+        if (cents === null) throw new Error(UI.sale.discountErrors.invalidEuros)
         rawInput.value = cents
       } else if (discountMode === 'percent') {
         const normalizedPct = trimmed.replace(',', '.')
         if (!/^-?\d+(\.\d+)?$/.test(normalizedPct)) {
-          throw new Error('Introduce un porcentaje válido (ej: 10 o 25)')
+          throw new Error(UI.sale.discountErrors.invalidPercent)
         }
         const pct = parseFloat(normalizedPct)
-        if (isNaN(pct)) throw new Error('Introduce un porcentaje válido (ej: 10 o 25)')
+        if (isNaN(pct)) throw new Error(UI.sale.discountErrors.invalidPercent)
         rawInput.value = pct
       }
 
@@ -108,7 +108,7 @@ export default function CartDrawer({
       return {
         discountCents: 0,
         totalCents: subtotalCents,
-        error: err instanceof Error ? err.message : 'Descuento no válido',
+        error: err instanceof Error ? err.message : UI.sale.discountErrors.invalidGeneric,
         rawInput,
       }
     }
@@ -282,10 +282,10 @@ export default function CartDrawer({
                 onChange={(e) => setDiscountValueStr(e.target.value)}
                 placeholder={
                   discountMode === 'finalPrice'
-                    ? `Ej: ${formatCentsToEurosInput(subtotalCents)}`
+                    ? UI.sale.discountPlaceholder.finalPrice(formatCentsToEurosInput(subtotalCents))
                     : discountMode === 'euros'
-                    ? 'Ej: 1,50'
-                    : 'Ej: 10'
+                    ? UI.sale.discountPlaceholder.euros
+                    : UI.sale.discountPlaceholder.percent
                 }
                 className="w-full px-3 py-2.5 bg-white border border-gray-300 rounded-lg text-base focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
                 autoFocus
@@ -309,7 +309,7 @@ export default function CartDrawer({
 
         {discountEnabled && discountCalc.discountCents > 0 && (
           <div className="flex justify-between text-sm text-green-700 font-medium">
-            <span>Descuento aplicado</span>
+            <span>{UI.sale.discountApplied}</span>
             <span>-{formatCents(discountCalc.discountCents)}</span>
           </div>
         )}

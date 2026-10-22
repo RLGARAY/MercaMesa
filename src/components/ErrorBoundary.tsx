@@ -1,4 +1,5 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react'
+import { UI } from '@/i18n'
 
 interface Props {
   children: ReactNode
@@ -47,11 +48,11 @@ export default class ErrorBoundary extends Component<Props, State> {
           </div>
 
           <h1 className="text-xl font-bold text-gray-900 mb-2">
-            Algo ha ido mal
+            {UI.errorBoundary.title}
           </h1>
 
           <p className="text-sm text-gray-600 max-w-sm mb-6">
-            Se ha producido un error inesperado en la interfaz. Tus datos están a salvo en el almacenamiento local.
+            {UI.errorBoundary.desc}
           </p>
 
           <div className="flex flex-col sm:flex-row gap-3 w-full max-w-xs">
@@ -60,7 +61,7 @@ export default class ErrorBoundary extends Component<Props, State> {
               onClick={this.handleReset}
               className="w-full py-3 px-4 border border-gray-300 bg-white hover:bg-gray-50 text-gray-800 text-sm font-semibold rounded-xl min-h-[48px] shadow-sm transition-colors"
             >
-              Reintentar
+              {UI.errorBoundary.retry}
             </button>
 
             <button
@@ -68,13 +69,13 @@ export default class ErrorBoundary extends Component<Props, State> {
               onClick={this.handleReload}
               className="w-full py-3 px-4 bg-brand-600 hover:bg-brand-700 text-white text-sm font-bold rounded-xl min-h-[48px] shadow-sm transition-colors active:scale-95"
             >
-              Recargar app
+              {UI.errorBoundary.reload}
             </button>
           </div>
 
           {import.meta.env.DEV && this.state.error && (
             <details className="mt-8 text-left max-w-md w-full bg-white p-3 rounded-xl border border-gray-200 text-xs text-rose-700 overflow-x-auto">
-              <summary className="font-semibold cursor-pointer text-gray-700">Detalles técnicos del error</summary>
+              <summary className="font-semibold cursor-pointer text-gray-700">{UI.errorBoundary.techDetails}</summary>
               <pre className="mt-2 text-[11px] font-mono whitespace-pre-wrap">{this.state.error.stack || this.state.error.message}</pre>
             </details>
           )}

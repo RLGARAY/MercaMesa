@@ -12,10 +12,10 @@ export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<SettingsTab>('inventory')
 
   const tabs: { id: SettingsTab; label: string; icon: string }[] = [
-    { id: 'inventory',   label: 'Inventario',   icon: '📦' },
-    { id: 'sales',       label: 'Ventas',       icon: '🧾' },
-    { id: 'catalog',     label: 'Catálogo',     icon: '🏷️' },
-    { id: 'diagnostics', label: 'Datos / Test', icon: '⚙️' },
+    { id: 'inventory',   label: UI.settings.tabs.inventory,   icon: '📦' },
+    { id: 'sales',       label: UI.settings.tabs.sales,       icon: '🧾' },
+    { id: 'catalog',     label: UI.settings.tabs.catalog,     icon: '🏷️' },
+    { id: 'diagnostics', label: UI.settings.tabs.diagnostics, icon: '⚙️' },
   ]
 
   return (
@@ -24,7 +24,7 @@ export default function SettingsPage() {
       <header className="sticky top-0 z-10 bg-white border-b border-gray-200 px-4 pt-3 pb-2 shadow-sm">
         <h1 className="text-xl font-bold text-gray-900 mb-2 text-left">{UI.settings.title}</h1>
 
-        <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-none" role="tablist" aria-label="Secciones de Ajustes">
+        <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-none" role="tablist" aria-label={UI.settings.sectionsAria}>
           {tabs.map(({ id, label, icon }) => (
             <button
               key={id}

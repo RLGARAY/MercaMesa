@@ -145,7 +145,7 @@ export default function StatsPage() {
       <header className="sticky top-0 z-10 bg-white border-b border-gray-200 px-4 pt-3 pb-2 shadow-sm">
         <h1 className="text-xl font-bold text-gray-900 mb-2">{UI.stats.title}</h1>
 
-        <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-none" role="tablist" aria-label="Seleccionar periodo">
+        <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-none" role="tablist" aria-label={UI.stats.selectPeriodAria}>
           {(
             [
               { id: 'today',  label: UI.stats.today },
@@ -175,7 +175,7 @@ export default function StatsPage() {
         {periodType === 'custom' && (
           <div className="flex items-center gap-2 pt-2 text-xs">
             <div className="flex-1">
-              <label htmlFor="custom-start-date" className="block text-[10px] text-gray-500 font-medium">Desde</label>
+              <label htmlFor="custom-start-date" className="block text-[10px] text-gray-500 font-medium">{UI.stats.fromDate}</label>
               <input
                 id="custom-start-date"
                 type="date"
@@ -185,7 +185,7 @@ export default function StatsPage() {
               />
             </div>
             <div className="flex-1">
-              <label htmlFor="custom-end-date" className="block text-[10px] text-gray-500 font-medium">Hasta</label>
+              <label htmlFor="custom-end-date" className="block text-[10px] text-gray-500 font-medium">{UI.stats.toDate}</label>
               <input
                 id="custom-end-date"
                 type="date"
@@ -201,7 +201,7 @@ export default function StatsPage() {
       {/* Contenido principal */}
       <div className="flex-1 p-4 pb-24 space-y-6 max-w-2xl mx-auto w-full">
         {/* TARJETAS RESUMEN (RF-E2) */}
-        <section aria-label="Tarjetas resumen">
+        <section aria-label={UI.stats.summaryCardsAria}>
           <div className="grid grid-cols-2 gap-3">
             {/* Dinero cobrado */}
             <div className="col-span-2 p-4 bg-gradient-to-br from-brand-600 to-brand-700 rounded-2xl shadow text-white flex items-center justify-between">
@@ -213,7 +213,7 @@ export default function StatsPage() {
                   {formatCents(summary.totalRevenueCents)}
                 </span>
                 <span className="text-xs opacity-80 mt-1 block">
-                  {summary.salesCount} ventas cobradas
+                  {UI.stats.salesCountLabel(summary.salesCount)}
                 </span>
               </div>
               <span className="text-4xl opacity-80" aria-hidden="true">💰</span>
@@ -252,7 +252,7 @@ export default function StatsPage() {
                   </span>
                 </div>
               </div>
-              <span className="text-xs text-gray-400">Total en ofertas</span>
+              <span className="text-xs text-gray-400">{UI.stats.totalInOffers}</span>
             </div>
           </div>
         </section>
@@ -262,7 +262,7 @@ export default function StatsPage() {
           <div className="flex justify-between items-center border-b border-gray-100 pb-2">
             <div>
               <h2 className="text-base font-bold text-gray-900">{UI.stats.topItems}</h2>
-              <p className="text-xs text-gray-500">Ranking por unidades e importe neto generado</p>
+              <p className="text-xs text-gray-500">{UI.stats.topItemsSubtitle}</p>
             </div>
           </div>
 
@@ -299,7 +299,7 @@ export default function StatsPage() {
                     onClick={() => setShowAllTopItems(!showAllTopItems)}
                     className="text-xs font-bold text-brand-600 hover:text-brand-700 py-1"
                   >
-                    {showAllTopItems ? 'Ver solo top 10' : `Ver todos (${topItems.length})`}
+                    {showAllTopItems ? UI.stats.viewTop10 : UI.stats.viewAllTop(topItems.length)}
                   </button>
                 </div>
               )}
@@ -311,7 +311,7 @@ export default function StatsPage() {
         <section className="bg-white rounded-2xl border border-gray-200 p-4 shadow-sm space-y-3">
           <div className="border-b border-gray-100 pb-2">
             <h2 className="text-base font-bold text-gray-900">{UI.stats.byCategory}</h2>
-            <p className="text-xs text-gray-500">Distribución de ingresos netos por categoría</p>
+            <p className="text-xs text-gray-500">{UI.stats.byCategorySubtitle}</p>
           </div>
 
           {categoryChartData.length === 0 ? (
@@ -325,7 +325,7 @@ export default function StatsPage() {
                     <XAxis dataKey="name" tick={{ fontSize: 11 }} />
                     <YAxis tick={{ fontSize: 10 }} />
                     <Tooltip
-                      formatter={(val) => [`${Number(val ?? 0)} €`, 'Ingresos']}
+                      formatter={(val) => [`${Number(val ?? 0)} €`, UI.stats.revenue]}
                     />
                     <Bar dataKey="euros" radius={[6, 6, 0, 0]}>
                       {categoryChartData.map((_, index) => (
@@ -356,7 +356,7 @@ export default function StatsPage() {
         <section className="bg-white rounded-2xl border border-gray-200 p-4 shadow-sm space-y-3">
           <div className="border-b border-gray-100 pb-2">
             <h2 className="text-base font-bold text-gray-900">{UI.stats.byHour}</h2>
-            <p className="text-xs text-gray-500">Horas fuertes de actividad en el mercadillo</p>
+            <p className="text-xs text-gray-500">{UI.stats.byHourSubtitle}</p>
           </div>
 
           {summary.salesCount === 0 ? (
@@ -370,10 +370,10 @@ export default function StatsPage() {
                   <Tooltip
                     formatter={(val, name) => [
                       name === 'euros' ? `${Number(val ?? 0)} €` : Number(val ?? 0),
-                      name === 'euros' ? 'Ingresos' : 'Ventas',
+                      name === 'euros' ? UI.stats.revenue : UI.stats.sales,
                     ]}
                   />
-                  <Bar dataKey="sales" name="Ventas" fill="#ea580c" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="sales" name={UI.stats.sales} fill="#ea580c" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -384,7 +384,7 @@ export default function StatsPage() {
         <section className="bg-white rounded-2xl border border-gray-200 p-4 shadow-sm space-y-3">
           <div className="border-b border-gray-100 pb-2">
             <h2 className="text-base font-bold text-gray-900">{UI.stats.recentSales}</h2>
-            <p className="text-xs text-gray-500">Últimos cobros registrados</p>
+            <p className="text-xs text-gray-500">{UI.stats.recentSalesSubtitle}</p>
           </div>
 
           {recentSales.length === 0 ? (
@@ -426,7 +426,7 @@ export default function StatsPage() {
             <div className="p-4 bg-amber-50/70 border border-amber-200 rounded-2xl space-y-2">
               <div className="flex items-center gap-1.5 font-bold text-amber-900 text-sm">
                 <span>⚠️</span>
-                <span>Artículos con stock crítico (≤ {lowStockThreshold} uds) ({criticalStockItems.length})</span>
+                <span>{UI.stats.criticalStockTitle(lowStockThreshold, criticalStockItems.length)}</span>
               </div>
               <div className="divide-y divide-amber-200/50 text-xs">
                 {criticalStockItems.map((item) => {
@@ -441,10 +441,10 @@ export default function StatsPage() {
                     level === 'low'
                       ? item.stock === 1
                         ? `${UI.sale.lastUnit} (1)`
-                        : `Poco stock (${item.stock})`
+                        : UI.sale.lowStockBadge(item.stock)
                       : level === 'zero'
                       ? `${UI.sale.outOfStock} (0)`
-                      : `Stock negativo (${item.stock})`
+                      : UI.sale.negativeStockBadge(item.stock)
 
                   return (
                     <div key={item.id} className="py-2 flex items-center justify-between">
@@ -463,13 +463,13 @@ export default function StatsPage() {
           {itemsWithoutSales.length > 0 && (
             <div className="p-4 bg-white border border-gray-200 rounded-2xl shadow-sm space-y-2">
               <h3 className="font-bold text-gray-800 text-sm">
-                Artículos sin ventas en este periodo ({itemsWithoutSales.length})
+                {UI.stats.withoutSalesTitle(itemsWithoutSales.length)}
               </h3>
               <div className="divide-y divide-gray-100 text-xs max-h-48 overflow-y-auto">
                 {itemsWithoutSales.map((item) => (
                   <div key={item.id} className="py-2 flex items-center justify-between">
                     <span className="text-gray-700">{item.name}</span>
-                    <span className="text-gray-400">Stock: {item.stock}</span>
+                    <span className="text-gray-400">{UI.sale.stockLabel(item.stock)}</span>
                   </div>
                 ))}
               </div>
@@ -480,7 +480,7 @@ export default function StatsPage() {
 
       {/* MODAL DETALLE DE VENTA RECIENTE (RF-E6) */}
       <Modal
-        title={selectedSale ? 'Detalle de venta' : ''}
+        title={selectedSale ? UI.stats.saleDetailTitle : ''}
         isOpen={Boolean(selectedSale)}
         onClose={() => {
           setSelectedSale(null)
@@ -499,17 +499,17 @@ export default function StatsPage() {
             )}
             <div className="p-3 bg-gray-50 rounded-xl border border-gray-200 text-xs space-y-1">
               <div className="flex justify-between">
-                <span className="text-gray-500">Fecha y hora</span>
+                <span className="text-gray-500">{UI.stats.dateTimeLabel}</span>
                 <span className="font-semibold">{formatDateTime(selectedSale.createdAt)}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-500">Total cobrado</span>
+                <span className="text-gray-500">{UI.stats.totalChargedLabel}</span>
                 <span className="font-black text-brand-700 text-sm">{formatCents(selectedSale.totalCents)}</span>
               </div>
             </div>
 
             <div className="space-y-2">
-              <h4 className="text-xs font-bold text-gray-700">Artículos</h4>
+              <h4 className="text-xs font-bold text-gray-700">{UI.stats.itemsTitle}</h4>
               <div className="divide-y divide-gray-100 border border-gray-200 rounded-xl bg-white text-xs">
                 {selectedSale.lines.map((l, i) => (
                   <div key={i} className="p-2.5 flex justify-between">
@@ -532,7 +532,7 @@ export default function StatsPage() {
                         disabled={isVoiding}
                         className="flex-1 py-2 bg-red-600 text-white rounded-lg text-xs font-bold min-h-10"
                       >
-                        {isVoiding ? UI.common.loading : 'Sí, anular'}
+                        {isVoiding ? UI.common.loading : UI.stats.confirmVoidYes}
                       </button>
                       <button
                         type="button"

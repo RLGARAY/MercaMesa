@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useRegisterSW } from 'virtual:pwa-register/react'
+import { UI } from '@/i18n'
 import { useNetworkStatus } from '@/hooks/useNetworkStatus'
 import { isSaleCartActive } from '@/utils/pwaUtils'
 import Modal from '@/components/Modal'
@@ -71,7 +72,7 @@ export default function PWAUpdatePrompt() {
           className="bg-amber-600 text-white text-xs font-semibold px-4 py-1.5 flex items-center justify-center gap-2 shadow-sm animate-in fade-in duration-200"
         >
           <span aria-hidden="true">📶</span>
-          <span>Modo sin conexión: la aplicación funciona 100% en local</span>
+          <span>{UI.pwa.offlineBanner}</span>
         </div>
       )}
 
@@ -83,12 +84,12 @@ export default function PWAUpdatePrompt() {
         >
           <div className="flex items-center gap-2">
             <span aria-hidden="true" className="text-base">✅</span>
-            <span>App lista para funcionar sin conexión</span>
+            <span>{UI.pwa.offlineReady}</span>
           </div>
           <button
             type="button"
             onClick={() => setOfflineReady(false)}
-            aria-label="Cerrar aviso de modo sin conexión"
+            aria-label={UI.pwa.closeOfflineReadyAria}
             className="text-gray-400 hover:text-white text-sm font-bold px-2 py-1"
           >
             ✕
@@ -100,12 +101,12 @@ export default function PWAUpdatePrompt() {
       {needRefresh && (
         <aside
           role="alert"
-          aria-label="Actualización disponible"
+          aria-label={UI.pwa.updateAvailableAria}
           className="bg-brand-600 text-white px-4 py-2.5 shadow-md flex items-center justify-between gap-3 animate-in slide-in-from-top duration-300 z-50 sticky top-0"
         >
           <div className="flex items-center gap-2 text-xs font-medium">
             <span aria-hidden="true" className="text-base">🚀</span>
-            <span>Hay una versión nueva disponible</span>
+            <span>{UI.pwa.updateAvailable}</span>
           </div>
 
           <div className="flex items-center gap-2">
@@ -114,14 +115,14 @@ export default function PWAUpdatePrompt() {
               onClick={() => setNeedRefresh(false)}
               className="px-2.5 py-1.5 text-xs text-brand-100 hover:text-white font-medium rounded-lg hover:bg-brand-700/50 transition-colors min-h-[40px]"
             >
-              Más tarde
+              {UI.pwa.later}
             </button>
             <button
               type="button"
               onClick={handleUpdateClick}
               className="px-3 py-1.5 bg-white text-brand-700 hover:bg-brand-50 text-xs font-bold rounded-lg shadow-sm transition-colors min-h-[40px] active:scale-95"
             >
-              Actualizar
+              {UI.pwa.updateBtn}
             </button>
           </div>
         </aside>
@@ -129,17 +130,14 @@ export default function PWAUpdatePrompt() {
 
       {/* 4. Modal de advertencia si hay carrito activo (SPEC sección 8) */}
       <Modal
-        title="Venta en curso"
+        title={UI.pwa.activeSaleModalTitle}
         isOpen={showCartWarning}
         onClose={() => setShowCartWarning(false)}
       >
         <div className="p-4 space-y-4 text-left">
           <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900 space-y-1">
-            <p className="font-bold">⚠️ Tienes artículos en el carrito</p>
-            <p>
-              Si actualizas la aplicación ahora, la página se recargará para aplicar la nueva versión.
-              Te recomendamos terminar o cobrar la venta actual antes de actualizar.
-            </p>
+            <p className="font-bold">⚠️ {UI.pwa.activeSaleWarningTitle}</p>
+            <p>{UI.pwa.activeSaleWarningDesc}</p>
           </div>
 
           <div className="flex gap-2 pt-2">
@@ -148,14 +146,14 @@ export default function PWAUpdatePrompt() {
               onClick={() => setShowCartWarning(false)}
               className="flex-1 py-3 px-4 border border-gray-300 rounded-xl text-gray-700 font-semibold text-xs hover:bg-gray-50 min-h-[48px]"
             >
-              Continuar venta
+              {UI.pwa.continueSale}
             </button>
             <button
               type="button"
               onClick={handleForceUpdate}
               className="flex-1 py-3 px-4 bg-brand-600 hover:bg-brand-700 text-white font-semibold rounded-xl text-xs min-h-[48px]"
             >
-              Actualizar ahora
+              {UI.pwa.updateNow}
             </button>
           </div>
         </div>

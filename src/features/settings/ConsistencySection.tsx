@@ -53,9 +53,9 @@ export default function ConsistencySection({ onFixItem }: ConsistencySectionProp
   return (
     <div className="bg-white rounded-2xl border border-gray-200 p-4 shadow-sm space-y-3 text-left">
       <div>
-        <h2 className="text-base font-bold text-gray-900">Diagnóstico de consistencia (RF-C10)</h2>
+        <h2 className="text-base font-bold text-gray-900">{UI.settings.consistencyTitle}</h2>
         <p className="text-xs text-gray-500">
-          Comprueba matemáticamente que: stock = suma(ajustes) − suma(ventas activas).
+          {UI.settings.consistencySubtitle}
         </p>
       </div>
 
@@ -75,14 +75,14 @@ export default function ConsistencySection({ onFixItem }: ConsistencySectionProp
             <div className="p-3 bg-green-50 border border-green-200 rounded-xl text-green-800 text-xs flex items-center gap-2">
               <span className="text-base">✅</span>
               <span>
-                <strong>Inventario 100% consistente.</strong> No se ha detectado ninguna discrepancia matemática en la base de datos local.
+                <strong>{UI.settings.consistencyOkStrong}</strong> {UI.settings.consistencyOkDesc}
               </span>
             </div>
           ) : (
             <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-900 text-xs space-y-2">
               <div className="flex items-center gap-1.5 font-bold text-amber-800">
                 <span>⚠️</span>
-                <span>Se detectaron discrepancias en {result.inconsistencies.length} artículo(s):</span>
+                <span>{UI.settings.consistencyIssuesFound(result.inconsistencies.length)}</span>
               </div>
 
               <div className="divide-y divide-amber-200/60">
@@ -101,7 +101,7 @@ export default function ConsistencySection({ onFixItem }: ConsistencySectionProp
                         onClick={() => onFixItem(item)}
                         className="px-2.5 py-1 bg-amber-600 text-white rounded text-[11px] font-bold"
                       >
-                        Corregir
+                        {UI.settings.fixBtn}
                       </button>
                     )}
                   </div>
@@ -114,7 +114,7 @@ export default function ConsistencySection({ onFixItem }: ConsistencySectionProp
                 disabled={isRunning}
                 className="w-full min-h-12 mt-2 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-xl shadow-sm transition-colors disabled:opacity-50"
               >
-                Reparar discrepancias de inventario
+                {UI.settings.repairConsistencyBtn}
               </button>
             </div>
           )}

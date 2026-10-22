@@ -73,7 +73,7 @@ export default function SalePage() {
     clearCart()
     setIsCartModalOpen(false)
     setLastSale(sale)
-    setUndoToastMessage(`Cobrado ${formatCents(sale.totalCents)}`)
+    setUndoToastMessage(UI.sale.chargedToast(formatCents(sale.totalCents)))
 
     if (undoTimeoutRef.current) window.clearTimeout(undoTimeoutRef.current)
     undoTimeoutRef.current = window.setTimeout(() => {
@@ -88,7 +88,7 @@ export default function SalePage() {
     try {
       await voidSale(lastSale.id, 'undo')
       setLastSale(null)
-      setUndoToastMessage('Venta deshecha y stock devuelto')
+      setUndoToastMessage(UI.sale.undoneToast)
       if (undoTimeoutRef.current) window.clearTimeout(undoTimeoutRef.current)
       undoTimeoutRef.current = window.setTimeout(() => {
         setUndoToastMessage(null)
@@ -162,7 +162,7 @@ export default function SalePage() {
             </div>
 
             {/* Chips de filtro por categoría (RF-V2) */}
-            <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none" role="tablist" aria-label="Filtrar por categoría">
+            <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none" role="tablist" aria-label={UI.sale.filterByCategoryAria}>
               <button
                 type="button"
                 role="tab"
@@ -205,10 +205,10 @@ export default function SalePage() {
                 {selectedCategoryId !== 'ALL' && (items?.length ?? 0) > 0 ? (
                   <>
                     <p className="text-base font-semibold text-gray-700 mb-1">
-                      No hay artículos en esta categoría
+                      {UI.sale.noItemsInCategory}
                     </p>
                     <p className="text-sm text-gray-500 mb-4 max-w-xs">
-                      Puedes ver todos los artículos del catálogo o añadir uno nuevo a esta categoría.
+                      {UI.sale.noItemsInCategoryHelp}
                     </p>
                     <div className="flex flex-wrap justify-center gap-2">
                       <button
@@ -216,14 +216,14 @@ export default function SalePage() {
                         onClick={() => setSelectedCategoryId('ALL')}
                         className="px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold text-xs rounded-xl min-h-[48px] transition-colors"
                       >
-                        Ver todas las categorías
+                        {UI.sale.viewAllCategories}
                       </button>
                       <button
                         type="button"
                         onClick={handleOpenCreate}
                         className="px-4 py-2.5 bg-brand-600 hover:bg-brand-700 text-white font-semibold text-xs rounded-xl min-h-[48px] shadow-sm transition-colors"
                       >
-                        + Añadir a esta categoría
+                        {UI.sale.addToCategory}
                       </button>
                     </div>
                   </>
@@ -283,7 +283,7 @@ export default function SalePage() {
                           <button
                             type="button"
                             onClick={() => handleOpenEdit(item)}
-                            aria-label={`Editar ${item.name}`}
+                            aria-label={UI.items.editItemAria(item.name)}
                             className="text-gray-400 hover:text-gray-600 p-2 min-w-[36px] min-h-[36px] flex items-center justify-center rounded-lg hover:bg-gray-100 transition-colors"
                           >
                             <svg
@@ -316,7 +316,7 @@ export default function SalePage() {
                           {/* Chips de stock (RF-E7, C1: colores y textos distintos para bajo, cero y negativo) */}
                           {stockLevel === 'low' && (
                             <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-100 text-amber-900 border border-amber-300">
-                              {item.stock === 1 ? `${UI.sale.lastUnit} (1)` : `Poco stock (${item.stock})`}
+                              {item.stock === 1 ? `${UI.sale.lastUnit} (1)` : UI.sale.lowStockBadge(item.stock)}
                             </span>
                           )}
                           {stockLevel === 'zero' && (
@@ -326,12 +326,12 @@ export default function SalePage() {
                           )}
                           {stockLevel === 'negative' && (
                             <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-800 border border-red-300">
-                              Stock negativo ({item.stock})
+                              {UI.sale.negativeStockBadge(item.stock)}
                             </span>
                           )}
                           {stockLevel === 'ok' && (
                             <span className="text-xs text-gray-400">
-                              Stock: {item.stock}
+                              {UI.sale.stockLabel(item.stock)}
                             </span>
                           )}
 
@@ -388,7 +388,7 @@ export default function SalePage() {
         {/* Columna Derecha: Carrito en paralelo para Tablet / Pantalla grande (RNF-4) */}
         <aside
           className="hidden lg:flex w-96 flex-col border-l border-gray-200 bg-white h-full overflow-y-auto p-4 shrink-0 shadow-sm"
-          aria-label="Carrito de compra en paralelo"
+          aria-label={UI.sale.cartParallelAria}
         >
           <div className="flex items-center justify-between pb-3 mb-2 border-b border-gray-100">
             <h2 className="text-base font-bold text-gray-900 flex items-center gap-2">
@@ -397,7 +397,7 @@ export default function SalePage() {
             </h2>
             {totalItemsCount > 0 && (
               <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-brand-100 text-brand-800">
-                {totalItemsCount} {totalItemsCount === 1 ? 'artículo' : 'artículos'}
+                {UI.sale.itemCountLabel(totalItemsCount)}
               </span>
             )}
           </div>
@@ -417,7 +417,7 @@ export default function SalePage() {
           <button
             type="button"
             onClick={() => setIsCartModalOpen(true)}
-            aria-label={`Ver carrito: ${totalItemsCount} artículos por ${formatCents(cartSubtotalCents)}`}
+            aria-label={UI.sale.viewCartAria(totalItemsCount, formatCents(cartSubtotalCents))}
             className="w-full max-w-md mx-auto min-h-14 bg-gray-900 hover:bg-black active:scale-[0.99] text-white p-4 rounded-2xl shadow-2xl flex items-center justify-between pointer-events-auto transition-transform"
           >
             <div className="flex items-center gap-3">
@@ -425,7 +425,7 @@ export default function SalePage() {
                 {totalItemsCount}
               </span>
               <span className="font-semibold text-sm">
-                Ver carrito
+                {UI.sale.viewCart}
               </span>
             </div>
 
@@ -441,7 +441,7 @@ export default function SalePage() {
 
       {/* Modal / Resumen del Carrito para móvil (RF-V5, RF-V6, RF-V7) */}
       <Modal
-        title="Carrito de compra"
+        title={UI.sale.cartModalTitle}
         isOpen={isCartModalOpen}
         onClose={() => setIsCartModalOpen(false)}
       >

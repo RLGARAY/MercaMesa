@@ -208,7 +208,7 @@ export default function DataBackupSection() {
       if (!hasGoogleClientId()) {
         setStatusMessage({
           type: 'error',
-          text: 'Falta configurar VITE_GOOGLE_CLIENT_ID en el archivo .env (ver README).',
+          text: UI.errors.driveMissingClientId,
         })
         return
       }
@@ -249,7 +249,7 @@ export default function DataBackupSection() {
       if (!hasGoogleClientId()) {
         setStatusMessage({
           type: 'error',
-          text: 'Falta configurar VITE_GOOGLE_CLIENT_ID en el archivo .env (ver README).',
+          text: UI.errors.driveMissingClientId,
         })
         return
       }
@@ -309,7 +309,7 @@ export default function DataBackupSection() {
       setPostImportInconsistencies([])
       setStatusMessage({
         type: 'success',
-        text: 'Discrepancias de inventario reparadas correctamente.',
+        text: UI.settings.inconsistenciesRepairedSuccess,
       })
     } catch (err) {
       setStatusMessage({
@@ -356,13 +356,13 @@ export default function DataBackupSection() {
   const getReasonLabel = (reason: LocalBackup['reason']) => {
     switch (reason) {
       case 'before-import':
-        return 'Antes de importar archivo'
+        return UI.settings.backupReasons.beforeImport
       case 'before-restore':
-        return 'Antes de restaurar copia'
+        return UI.settings.backupReasons.beforeRestore
       case 'before-reset':
-        return 'Antes de borrar datos'
+        return UI.settings.backupReasons.beforeReset
       case 'before-migration':
-        return 'Antes de migrar esquema'
+        return UI.settings.backupReasons.beforeMigration
       default:
         return reason
     }
@@ -411,7 +411,7 @@ export default function DataBackupSection() {
               disabled={loading}
               className="flex-1 min-h-12 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-xl px-3 py-2 transition-colors disabled:opacity-50"
             >
-              Reparar discrepancias
+              {UI.settings.repairInconsistenciesBtn}
             </button>
             <button
               type="button"
@@ -419,7 +419,7 @@ export default function DataBackupSection() {
               disabled={loading}
               className="min-h-12 px-3 py-2 border border-amber-300 text-amber-900 font-semibold rounded-xl hover:bg-amber-100 transition-colors"
             >
-              Ignorar por ahora
+              {UI.settings.ignoreForNowBtn}
             </button>
           </div>
         </div>
@@ -430,7 +430,7 @@ export default function DataBackupSection() {
         <div>
           <h2 className="text-base font-bold text-gray-900">{UI.settings.data}</h2>
           <p className="text-xs text-gray-500 mt-1">
-            Exporta copias locales en tu dispositivo o sincroniza tu puesto con Google Drive.
+            {UI.settings.dataSubtitle}
           </p>
         </div>
 
@@ -441,7 +441,7 @@ export default function DataBackupSection() {
           onChange={handleFileChange}
           accept=".json,application/json"
           className="hidden"
-          aria-label="Seleccionar archivo JSON para importar"
+          aria-label={UI.settings.selectJsonAria}
         />
 
         {/* Botones de archivo local (RF-C6, RF-C7) */}
@@ -519,10 +519,10 @@ export default function DataBackupSection() {
           <div className="flex items-center gap-2">
             <span aria-hidden="true" className="text-sm">💾</span>
             <div>
-              <span className="font-semibold">Almacenamiento persistente:</span>{' '}
+              <span className="font-semibold">{UI.settings.persistentStorageLabel}</span>{' '}
               {isStoragePersisted
-                ? 'Activo (protegido contra borrado automático del navegador)'
-                : 'Estándar'}
+                ? UI.settings.persistentStorageActive
+                : UI.settings.persistentStorageStandard}
             </div>
           </div>
           <span
@@ -532,7 +532,7 @@ export default function DataBackupSection() {
                 : 'bg-gray-200 text-gray-700'
             }`}
           >
-            {isStoragePersisted ? 'Garantizado' : 'Básico'}
+            {isStoragePersisted ? UI.settings.persistentBadgeGuaranteed : UI.settings.persistentBadgeBasic}
           </span>
         </div>
       </div>
@@ -546,7 +546,7 @@ export default function DataBackupSection() {
 
         {localBackups.length === 0 ? (
           <p className="text-xs text-gray-400 italic py-2">
-            Aún no hay copias de seguridad automáticas registradas.
+            {UI.settings.noLocalBackups}
           </p>
         ) : (
           <ul className="divide-y divide-gray-100" role="list">
@@ -586,7 +586,7 @@ export default function DataBackupSection() {
             <span>{UI.settings.dangerZone}</span>
           </h3>
           <p className="text-xs text-rose-700 mt-1">
-            Borra todos los artículos, ventas e historial local. Se guardará una copia previa de seguridad automática antes de proceder.
+            {UI.settings.dangerZoneDesc}
           </p>
         </div>
 
@@ -605,7 +605,7 @@ export default function DataBackupSection() {
 
       {/* Modal: Confirmar Importación desde archivo (RF-C7) */}
       <Modal
-        title="Confirmar importación de datos"
+        title={UI.settings.confirmImportModalTitle}
         isOpen={Boolean(pendingPayload)}
         onClose={() => {
           setPendingPayload(null)
@@ -648,7 +648,7 @@ export default function DataBackupSection() {
                 disabled={loading}
                 className="flex-1 py-3 px-4 bg-brand-600 hover:bg-brand-700 text-white font-semibold rounded-xl text-xs min-h-[48px]"
               >
-                {loading ? UI.common.loading : 'Sustituir datos locales'}
+                {loading ? UI.common.loading : UI.settings.replaceLocalDataBtn}
               </button>
             </div>
           </div>
@@ -657,7 +657,7 @@ export default function DataBackupSection() {
 
       {/* Modal: Confirmar Restauración de copia local */}
       <Modal
-        title="Restaurar copia de seguridad"
+        title={UI.settings.restoreBackupModalTitle}
         isOpen={Boolean(backupToRestore)}
         onClose={() => setBackupToRestore(null)}
       >
@@ -673,7 +673,7 @@ export default function DataBackupSection() {
             </div>
 
             <p className="text-[11px] text-gray-500">
-              Se creará automáticamente una nueva copia antes de restaurar, para que nunca pierdas datos.
+              {UI.settings.restoreBackupAutoNote}
             </p>
 
             <div className="flex gap-2 pt-2">
@@ -750,7 +750,7 @@ export default function DataBackupSection() {
 
       {/* Modal: Confirmar Restauración desde Google Drive (SPEC sección 7) */}
       <Modal
-        title="Restaurar desde Google Drive"
+        title={UI.settings.driveRestoreModalTitle}
         isOpen={Boolean(driveRestorePreview)}
         onClose={() => setDriveRestorePreview(null)}
       >
@@ -787,7 +787,7 @@ export default function DataBackupSection() {
                 disabled={loading}
                 className="flex-1 py-3 px-4 bg-sky-600 hover:bg-sky-700 text-white font-semibold rounded-xl text-xs min-h-[48px]"
               >
-                {loading ? UI.common.loading : 'Restaurar datos'}
+                {loading ? UI.common.loading : UI.settings.driveRestoreBtn}
               </button>
             </div>
           </div>
@@ -796,7 +796,7 @@ export default function DataBackupSection() {
 
       {/* Modal: Doble Confirmación Borrar Todo (RF-C11) */}
       <Modal
-        title="Zona de peligro: Borrar todo"
+        title={UI.settings.deleteAllModalTitle}
         isOpen={showDeleteModal}
         onClose={() => {
           setShowDeleteModal(false)
@@ -841,7 +841,7 @@ export default function DataBackupSection() {
               disabled={loading || deleteConfirmationText.trim().toUpperCase() !== 'BORRAR'}
               className="flex-1 py-3 px-4 bg-rose-600 hover:bg-rose-700 disabled:bg-rose-300 text-white font-semibold rounded-xl text-xs transition-colors min-h-[48px]"
             >
-              {loading ? UI.common.loading : 'Borrar definitivamente'}
+              {loading ? UI.common.loading : UI.settings.deleteAllDefinitiveBtn}
             </button>
           </div>
         </div>
@@ -849,7 +849,7 @@ export default function DataBackupSection() {
 
       {/* Modal: Falta de espacio en localBackups (E4) */}
       <Modal
-        title="Espacio de almacenamiento agotado"
+        title={UI.settings.quotaModalTitle}
         isOpen={Boolean(quotaErrorState)}
         onClose={() => setQuotaErrorState(null)}
       >
@@ -857,9 +857,7 @@ export default function DataBackupSection() {
           <div className="p-4 space-y-4 text-left">
             <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900 space-y-1.5">
               <p className="font-bold">⚠️ {quotaErrorState.message}</p>
-              <p>
-                Te recomendamos exportar primero tus datos a un archivo JSON. Si decides continuar ahora, la operación se realizará sin guardar la copia previa automática en el dispositivo.
-              </p>
+              <p>{UI.settings.quotaModalAdvice}</p>
             </div>
             <div className="flex gap-2 pt-2">
               <button
@@ -876,7 +874,7 @@ export default function DataBackupSection() {
                 disabled={loading}
                 className="flex-1 py-3 px-4 bg-amber-600 hover:bg-amber-700 text-white font-semibold rounded-xl text-xs min-h-[48px]"
               >
-                {loading ? UI.common.loading : 'Continuar sin copia previa'}
+                {loading ? UI.common.loading : UI.settings.continueWithoutBackupBtn}
               </button>
             </div>
           </div>

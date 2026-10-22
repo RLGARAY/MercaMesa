@@ -53,7 +53,7 @@ export default function InventorySection() {
     setThresholdSaved(false)
     const parsed = parseStrictIntegerString(thresholdInput, { allowNegative: false })
     if (parsed === null || parsed < 1) {
-      setThresholdError('Introduce un número entero mayor o igual a 1')
+      setThresholdError(UI.settings.lowStockThresholdError)
       return
     }
     try {
@@ -99,13 +99,13 @@ export default function InventorySection() {
       if (adjustMode === 'absolute') {
         const target = parseStrictIntegerString(targetStockStr, { allowNegative: true })
         if (target === null) {
-          throw new Error('Introduce un número entero para el stock real')
+          throw new Error(UI.settings.adjustErrors.invalidRealStock)
         }
         await setStockAbsolute(selectedItemForAdjust.id, target, reason, note.trim() || undefined)
       } else {
         const delta = parseStrictIntegerString(deltaStr, { allowNegative: true })
         if (delta === null || delta === 0) {
-          throw new Error('Introduce una cantidad válida distinta de 0 para sumar o restar')
+          throw new Error(UI.settings.adjustErrors.invalidDeltaStock)
         }
         await adjustStock(selectedItemForAdjust.id, delta, reason, note.trim() || undefined)
       }
@@ -132,7 +132,7 @@ export default function InventorySection() {
       <div className="flex items-center justify-between pb-2 border-b border-gray-100">
         <div>
           <h2 className="text-lg font-bold text-gray-900">{UI.settings.inventory}</h2>
-          <p className="text-xs text-gray-500">Ajusta el recuento físico real o añade reposiciones</p>
+          <p className="text-xs text-gray-500">{UI.settings.inventorySubtitle}</p>
         </div>
         <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-gray-600">
           <input
@@ -141,7 +141,7 @@ export default function InventorySection() {
             onChange={(e) => setShowArchived(e.target.checked)}
             className="rounded border-gray-300 text-brand-600"
           />
-          <span>Ver archivados</span>
+          <span>{UI.settings.showArchived}</span>
         </label>
       </div>
 
@@ -152,10 +152,10 @@ export default function InventorySection() {
       >
         <div>
           <label htmlFor="low-stock-threshold-input" className="text-xs font-bold text-gray-800 block">
-            Umbral de aviso de poco stock (≤ unidades)
+            {UI.settings.lowStockThresholdLabel}
           </label>
           <p className="text-[11px] text-gray-500">
-            Preferencia de este dispositivo (por defecto ≤ {DEFAULT_LOW_STOCK_THRESHOLD}). No se incluye en las copias de seguridad.
+            {UI.settings.lowStockThresholdHelp(DEFAULT_LOW_STOCK_THRESHOLD)}
           </p>
           {thresholdError && (
             <p className="text-xs text-red-600 font-semibold mt-1" role="alert">
@@ -164,7 +164,7 @@ export default function InventorySection() {
           )}
           {thresholdSaved && !thresholdError && (
             <p className="text-xs text-green-700 font-semibold mt-1" role="status">
-              Umbral guardado ({lowStockThreshold} uds).
+              {UI.settings.lowStockThresholdSaved(lowStockThreshold)}
             </p>
           )}
         </div>
@@ -223,7 +223,7 @@ export default function InventorySection() {
                     </span>
                     {stockLevel === 'low' && (
                       <span className="text-[10px] font-semibold bg-amber-100 text-amber-900 border border-amber-300 px-1.5 py-0.5 rounded">
-                        {item.stock === 1 ? `${UI.sale.lastUnit} (1)` : `Poco stock (${item.stock})`}
+                        {item.stock === 1 ? `${UI.sale.lastUnit} (1)` : UI.sale.lowStockBadge(item.stock)}
                       </span>
                     )}
                     {stockLevel === 'zero' && (
@@ -233,7 +233,7 @@ export default function InventorySection() {
                     )}
                     {stockLevel === 'negative' && (
                       <span className="text-[10px] font-bold bg-red-100 text-red-800 border border-red-300 px-1.5 py-0.5 rounded">
-                        Stock negativo ({item.stock})
+                        {UI.sale.negativeStockBadge(item.stock)}
                       </span>
                     )}
                   </div>
@@ -244,17 +244,17 @@ export default function InventorySection() {
                   <button
                     type="button"
                     onClick={() => handleOpenHistory(item)}
-                    aria-label={`Ver historial de ${item.name}`}
+                    aria-label={UI.settings.viewHistoryAria(item.name)}
                     className="p-2 text-gray-500 hover:text-brand-600 active:bg-gray-100 rounded-lg text-xs font-semibold min-h-12 flex items-center gap-1"
                   >
                     <span>📜</span>
-                    <span className="hidden sm:inline">Historial</span>
+                    <span className="hidden sm:inline">{UI.settings.historyBtn}</span>
                   </button>
 
                   <button
                     type="button"
                     onClick={() => handleOpenAdjust(item)}
-                    aria-label={`Ajustar stock de ${item.name}`}
+                    aria-label={UI.settings.adjustStockAria(item.name)}
                     className="px-3.5 py-2 bg-brand-50 hover:bg-brand-100 active:bg-brand-200 text-brand-700 font-bold text-xs rounded-xl min-h-12 flex items-center transition-colors"
                   >
                     {UI.settings.adjustStock}
@@ -268,7 +268,7 @@ export default function InventorySection() {
 
       {/* MODAL: AJUSTAR STOCK (RF-C1) */}
       <Modal
-        title={selectedItemForAdjust ? `Ajustar stock: ${selectedItemForAdjust.name}` : ''}
+        title={selectedItemForAdjust ? UI.settings.adjustModalTitle(selectedItemForAdjust.name) : ''}
         isOpen={Boolean(selectedItemForAdjust)}
         onClose={() => setSelectedItemForAdjust(null)}
       >
@@ -281,14 +281,14 @@ export default function InventorySection() {
             )}
 
             <div className="p-3 bg-gray-50 rounded-xl border border-gray-200 flex justify-between items-center text-sm">
-              <span className="text-gray-600">Stock registrado actualmente:</span>
+              <span className="text-gray-600">{UI.settings.currentlyRegisteredStock}</span>
               <span className="font-extrabold text-base text-gray-900">{selectedItemForAdjust.stock}</span>
             </div>
 
             {/* Selector de modo: Fijar valor exacto o Sumar/Restar */}
             <div>
               <label className="block text-xs font-bold text-gray-700 mb-1.5">
-                Método de ajuste
+                {UI.settings.adjustMethodLabel}
               </label>
               <div className="grid grid-cols-2 gap-1 bg-gray-100 p-1 rounded-xl text-xs font-semibold">
                 <button
@@ -300,7 +300,7 @@ export default function InventorySection() {
                       : 'text-gray-600 hover:text-gray-900'
                   }`}
                 >
-                  Fijar valor exacto
+                  {UI.settings.adjustMethodAbsolute}
                 </button>
                 <button
                   type="button"
@@ -311,7 +311,7 @@ export default function InventorySection() {
                       : 'text-gray-600 hover:text-gray-900'
                   }`}
                 >
-                  Sumar / Restar
+                  {UI.settings.adjustMethodDelta}
                 </button>
               </div>
             </div>
@@ -320,7 +320,7 @@ export default function InventorySection() {
             {adjustMode === 'absolute' ? (
               <div>
                 <label htmlFor="adjust-absolute-stock" className="block text-sm font-medium text-gray-700 mb-1">
-                  Nuevo stock físico real
+                  {UI.settings.newRealStockLabel}
                 </label>
                 <input
                   id="adjust-absolute-stock"
@@ -333,7 +333,7 @@ export default function InventorySection() {
                 />
                 {previewDelta !== null && (
                   <p className="mt-1 text-xs text-gray-500">
-                    Cambio neto que se registrará:{' '}
+                    {UI.settings.netChangePreview}{' '}
                     <strong className={previewDelta >= 0 ? 'text-green-600' : 'text-red-600'}>
                       {previewDelta > 0 ? `+${previewDelta}` : previewDelta}
                     </strong>
@@ -343,7 +343,7 @@ export default function InventorySection() {
             ) : (
               <div>
                 <label htmlFor="adjust-delta-stock" className="block text-sm font-medium text-gray-700 mb-1">
-                  Cantidad a sumar o restar (usa signo − para restar)
+                  {UI.settings.deltaStockLabel}
                 </label>
                 <input
                   id="adjust-delta-stock"
@@ -351,13 +351,13 @@ export default function InventorySection() {
                   inputMode="numeric"
                   value={deltaStr}
                   onChange={(e) => setDeltaStr(e.target.value)}
-                  placeholder="Ej: 5 o -2"
+                  placeholder={UI.settings.deltaStockPlaceholder}
                   className="w-full px-3 py-3 border border-gray-300 rounded-lg text-base font-bold"
                   required
                 />
                 {parsedDeltaPreview !== null && (
                   <p className="mt-1 text-xs text-gray-500">
-                    El nuevo stock quedará en:{' '}
+                    {UI.settings.newStockPreview}{' '}
                     <strong>{selectedItemForAdjust.stock + parsedDeltaPreview}</strong>
                   </p>
                 )}
@@ -367,7 +367,7 @@ export default function InventorySection() {
             {/* Motivo (obligatorio) */}
             <div>
               <label htmlFor="adjust-reason" className="block text-sm font-medium text-gray-700 mb-1">
-                Motivo del ajuste
+                {UI.settings.adjustReasonLabel}
               </label>
               <select
                 id="adjust-reason"
@@ -386,14 +386,14 @@ export default function InventorySection() {
             {/* Nota opcional */}
             <div>
               <label htmlFor="adjust-note" className="block text-sm font-medium text-gray-700 mb-1">
-                Nota u observación (opcional)
+                {UI.settings.adjustNoteLabel}
               </label>
               <input
                 id="adjust-note"
                 type="text"
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
-                placeholder="Ej: Recuento al montar la mesa"
+                placeholder={UI.settings.adjustNotePlaceholder}
                 className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm"
               />
             </div>
@@ -421,13 +421,13 @@ export default function InventorySection() {
 
       {/* MODAL: HISTORIAL DE AJUSTES (RF-C2) */}
       <Modal
-        title={selectedItemForHistory ? `Historial: ${selectedItemForHistory.name}` : ''}
+        title={selectedItemForHistory ? UI.settings.historyModalTitle(selectedItemForHistory.name) : ''}
         isOpen={Boolean(selectedItemForHistory)}
         onClose={() => setSelectedItemForHistory(null)}
       >
         <div className="space-y-3">
           {historyList.length === 0 ? (
-            <p className="text-center py-6 text-gray-400 text-sm">No hay movimientos de stock registrados.</p>
+            <p className="text-center py-6 text-gray-400 text-sm">{UI.settings.noStockMovements}</p>
           ) : (
             <div className="divide-y divide-gray-100">
               {historyList.map((adj) => {
@@ -446,7 +446,7 @@ export default function InventorySection() {
                       <div className="flex items-center gap-2">
                         <span className="font-semibold text-xs text-gray-900">
                           {adj.reason === 'initial'
-                            ? 'Stock inicial'
+                            ? UI.settings.initialStockReason
                             : UI.settings.adjustReason[adj.reason] ?? adj.reason}
                         </span>
                         <span className="text-[11px] text-gray-400">{formattedDate}</span>
