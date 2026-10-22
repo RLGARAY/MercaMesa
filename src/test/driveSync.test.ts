@@ -1,6 +1,6 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { MercaMesaDB, initDB } from '@/db/db'
-import type { DriveClient, RemoteFileMeta } from '@/services/drive/driveClient'
+import { GoogleDriveClient, type DriveClient, type RemoteFileMeta } from '@/services/drive/driveClient'
 import {
   uploadToDrive,
   fetchDriveRestorePreview,
@@ -265,6 +265,80 @@ describe('driveSyncService (RF-C8, RF-C9, SPEC sección 7)', () => {
       // 1 día antes
       const t4 = new Date('2026-10-16T14:30:00Z').toISOString()
       expect(formatLastSyncRelative(t4, now)).toBe('Ayer')
+    })
+  })
+
+  describe('GoogleDriveClient.uploadFile cuerpo HTTP multipart (D2, #1)', () => {
+    const samplePayload: BackupPayload = {
+      schemaVersion: 2,
+      revision: 1,
+      exportedAt: '2026-10-21T10:00:00.000Z',
+      deviceId: 'dev-test',
+      categories: [],
+      items: [],
+      sales: [],
+      adjustments: [],
+    }
+
+    afterEach(() => {
+      vi.restoreAllMocks()
+    })
+
+    it('envía POST con mimeType en los metadatos al crear el archivo por primera vez y PATCH SIN mimeType al actualizar un archivo existente (D2, #1)', async () => {
+      const fetchMock = vi.fn().mockImplementation(async () => ({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          id: 'drive-id-999',
+          modifiedTime: '2026-10-21T10:01:00.000Z',
+          appProperties: { revision: '1' },
+        }),
+      }))
+      vi.stubGlobal('fetch', fetchMock)
+
+      const client = new GoogleDriveClient('fake-oauth-token')
+
+      // 1. Creación inicial (sin existingFileId -> POST)
+      await client.uploadFile(samplePayload, 1)
+      expect(fetchMock).toHaveBeenCalledTimes(1)
+
+      const [postUrl, postInit] = fetchMock.mock.calls[0] as [string, RequestInit]
+      expect(postUrl).toBe(
+        'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,appProperties,modifiedTime',
+      )
+      expect(postInit.method).toBe('POST')
+      const postBody = String(postInit.body)
+      // Extraer el primer bloque JSON de metadatos del cuerpo multipart
+      const postParts = postBody.split('Content-Type: application/json')
+      const postMetaJson = postParts[1]!.replace('; charset=UTF-8\r\n\r\n', '').split('\r\n--')[0]!
+      const postMetadata = JSON.parse(postMetaJson) as Record<string, unknown>
+
+      expect(postMetadata).toEqual({
+        name: 'mercadillo-datos.json',
+        mimeType: 'application/json',
+        appProperties: { revision: '1' },
+      })
+
+      // 2. Actualización sobre archivo existente (con existingFileId -> PATCH)
+      await client.uploadFile(samplePayload, 2, 'drive-id-999')
+      expect(fetchMock).toHaveBeenCalledTimes(2)
+
+      const [patchUrl, patchInit] = fetchMock.mock.calls[1] as [string, RequestInit]
+      expect(patchUrl).toBe(
+        'https://www.googleapis.com/upload/drive/v3/files/drive-id-999?uploadType=multipart&fields=id,appProperties,modifiedTime',
+      )
+      expect(patchInit.method).toBe('PATCH')
+      const patchBody = String(patchInit.body)
+      const patchParts = patchBody.split('Content-Type: application/json')
+      const patchMetaJson = patchParts[1]!.replace('; charset=UTF-8\r\n\r\n', '').split('\r\n--')[0]!
+      const patchMetadata = JSON.parse(patchMetaJson) as Record<string, unknown>
+
+      // En PATCH NO debe incluirse mimeType
+      expect('mimeType' in patchMetadata).toBe(false)
+      expect(patchMetadata).toEqual({
+        name: 'mercadillo-datos.json',
+        appProperties: { revision: '2' },
+      })
     })
   })
 })

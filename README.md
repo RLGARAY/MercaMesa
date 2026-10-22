@@ -125,6 +125,15 @@ El proyecto incluye el workflow `.github/workflows/deploy.yml` que ejecuta los t
 3. (Opcional, para Google Drive en producción) En **Settings → Secrets and variables → Actions → Variables**, crea la variable de repositorio `VITE_GOOGLE_CLIENT_ID` con tu ID de cliente OAuth y asegúrate de añadir `https://USUARIO.github.io` en los **Orígenes autorizados de JavaScript** de Google Cloud Console.
 4. Al hacer `push` a la rama `main` (o lanzando el workflow manualmente desde la pestaña **Actions**), la PWA quedará publicada e instalable en `https://USUARIO.github.io/NOMBRE_REPO/`.
 
+### Probar la compilación bajo una subruta en local
+
+Para verificar localmente que el manifest, el service worker y los recursos funcionan bajo una ruta base distinta de `/`:
+
+```bash
+BASE_PATH=/prueba/ npm run build
+npx vite preview --base /prueba/
+```
+
 ## Fases de desarrollo
 
 | Fase | Estado | Descripción |

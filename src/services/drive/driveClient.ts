@@ -95,14 +95,22 @@ export class GoogleDriveClient implements DriveClient {
     revision: number,
     existingFileId?: string,
   ): Promise<RemoteFileMeta> {
+    const isUpdate = Boolean(existingFileId)
     const jsonContent = JSON.stringify(payload, null, 2)
-    const metadata = {
-      name: DRIVE_FILE_NAME,
-      mimeType: 'application/json',
-      appProperties: {
-        revision: String(revision),
-      },
-    }
+    const metadata = isUpdate
+      ? {
+          name: DRIVE_FILE_NAME,
+          appProperties: {
+            revision: String(revision),
+          },
+        }
+      : {
+          name: DRIVE_FILE_NAME,
+          mimeType: 'application/json',
+          appProperties: {
+            revision: String(revision),
+          },
+        }
 
     const boundary = '-------314159265358979323846'
     const delimiter = `\r\n--${boundary}\r\n`
@@ -117,7 +125,6 @@ export class GoogleDriveClient implements DriveClient {
       jsonContent +
       closeDelimiter
 
-    const isUpdate = Boolean(existingFileId)
     const url = isUpdate
       ? `https://www.googleapis.com/upload/drive/v3/files/${existingFileId}?uploadType=multipart&fields=id,appProperties,modifiedTime`
       : 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,appProperties,modifiedTime'
