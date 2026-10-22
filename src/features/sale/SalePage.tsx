@@ -22,16 +22,6 @@ export default function SalePage() {
   const [undoToastMessage, setUndoToastMessage] = useState<string | null>(null)
   const undoTimeoutRef = useRef<number | null>(null)
 
-  // Carrito persistente en localStorage (Decisión 2, RN-1)
-  const {
-    quantities,
-    totalItemsCount,
-    getQuantity,
-    addToCart,
-    removeFromCart,
-    clearCart,
-  } = useCart()
-
   // Consultas reactivas a IndexedDB con useLiveQuery
   const categories = useLiveQuery(
     () => db.categories.orderBy('sortOrder').filter(c => !c.archived).toArray(),
@@ -49,25 +39,22 @@ export default function SalePage() {
   )
   const lowStockThreshold = meta?.lowStockThreshold ?? DEFAULT_LOW_STOCK_THRESHOLD
 
+  // Carrito persistente en localStorage purgado contra artículos activos (Decisión 2, RN-1, C2 #7)
+  const {
+    cartLines,
+    totalItemsCount,
+    getQuantity,
+    addToCart,
+    removeFromCart,
+    clearCart,
+  } = useCart(items)
+
   // Filtro de artículos por categoría
   const filteredItems = useMemo(() => {
     if (!items) return []
     if (selectedCategoryId === 'ALL') return items
     return items.filter(item => item.categoryId === selectedCategoryId)
   }, [items, selectedCategoryId])
-
-  // Artículos actualmente en el carrito con cantidad > 0
-  const cartLines = useMemo(() => {
-    if (!items) return []
-    return Object.entries(quantities)
-      .map(([itemId, qty]) => {
-        if (qty <= 0) return null
-        const item = items.find(i => i.id === itemId)
-        if (!item) return null
-        return { item, quantity: qty }
-      })
-      .filter((line): line is { item: Item; quantity: number } => line !== null)
-  }, [items, quantities])
 
   // Subtotal del carrito
   const cartSubtotalCents = useMemo(() => {

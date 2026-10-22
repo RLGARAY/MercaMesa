@@ -194,6 +194,22 @@ export async function archiveItem(
   if (!item) throw new Error('Artículo no encontrado')
 
   await dbInstance.items.update(id, { archived: true, updatedAt: new Date().toISOString() })
+
+  // Purgar el artículo archivado del carrito persistido en localStorage (C2, #7)
+  if (typeof localStorage !== 'undefined') {
+    try {
+      const raw = localStorage.getItem('mercamesa_cart_v1')
+      if (raw) {
+        const parsed = JSON.parse(raw) as Record<string, number>
+        if (id in parsed) {
+          delete parsed[id]
+          localStorage.setItem('mercamesa_cart_v1', JSON.stringify(parsed))
+        }
+      }
+    } catch {
+      // Ignorar errores de localStorage
+    }
+  }
 }
 
 /**
