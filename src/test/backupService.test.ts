@@ -530,10 +530,10 @@ describe('backupService (RF-C6, RF-C7, RF-C11)', () => {
       expect(names).toContain('Llaveros')
       expect(names).toContain('Láminas')
 
-      // Comprobar que se creó la copia de seguridad previa
+      // Comprobar que se creó la copia de seguridad previa con motivo 'before-reset' (E3)
       const backups = await getLocalBackups(testDb)
       expect(backups.length).toBe(1)
-      expect(backups[0]?.reason).toBe('before-migration')
+      expect(backups[0]?.reason).toBe('before-reset')
 
       // Verificar que el payload de la copia contiene el artículo que existía antes
       const savedPayload = JSON.parse(backups[0]!.data) as BackupPayload
@@ -597,6 +597,37 @@ describe('backupService (RF-C6, RF-C7, RF-C11)', () => {
       await importBackupPayload(exported, testDb)
       const metaAfter = await testDb.meta.get(META_KEY)
       expect(metaAfter?.lowStockThreshold).toBe(4)
+    })
+
+    it('elimina las copias más antiguas al superar 3 y permite continuar con skipPreBackup si localBackups falla por cuota (E4)', async () => {
+      // Crear 4 copias seguidas
+      await saveLocalBackup('before-import', testDb)
+      await saveLocalBackup('before-restore', testDb)
+      await saveLocalBackup('before-migration', testDb)
+      const fourth = await saveLocalBackup('before-reset', testDb)
+
+      const backups = await getLocalBackups(testDb)
+      expect(backups).toHaveLength(3)
+      expect(backups[0]?.id).toBe(fourth.id)
+      expect(backups[0]?.reason).toBe('before-reset')
+
+      // Simular fallo de cuota (QuotaExceededError) al guardar en localBackups
+      const origAdd = testDb.localBackups.add.bind(testDb.localBackups)
+      testDb.localBackups.add = () => {
+        const quotaErr = new Error('QuotaExceededError: The quota has been exceeded.')
+        quotaErr.name = 'QuotaExceededError'
+        return Promise.reject(quotaErr) as ReturnType<typeof origAdd>
+      }
+
+      try {
+        // Sin confirmación, lanza error comprensible de falta de espacio
+        await expect(resetAllData(testDb)).rejects.toThrow(/espacio|cuota/i)
+
+        // Si el usuario confirma continuar sin copia previa (skipPreBackup: true), la operación principal se completa
+        await expect(resetAllData(testDb, { skipPreBackup: true })).resolves.toBeUndefined()
+      } finally {
+        testDb.localBackups.add = origAdd
+      }
     })
   })
 })

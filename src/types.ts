@@ -80,5 +80,5 @@ export interface LocalBackup {
   createdAt: string         // ISO 8601 UTC
   schemaVersion: number
   data: string              // JSON serializado de toda la base de datos
-  reason: 'before-import' | 'before-restore' | 'before-migration'
+  reason: 'before-import' | 'before-restore' | 'before-migration' | 'before-reset'
 }

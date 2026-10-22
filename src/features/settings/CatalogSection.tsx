@@ -104,10 +104,11 @@ export default function CatalogSection() {
   }
 
   const handleRestoreItem = async (item: Item) => {
+    setCategoryError(null)
     try {
       await restoreItem(item.id)
     } catch (err) {
-      alert(err instanceof Error ? err.message : UI.errors.generic)
+      setCategoryError(err instanceof Error ? err.message : UI.errors.generic)
     }
   }
 

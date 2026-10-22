@@ -94,7 +94,11 @@ export default function SalePage() {
         setUndoToastMessage(null)
       }, 3000)
     } catch (err) {
-      alert(err instanceof Error ? err.message : UI.errors.generic)
+      setUndoToastMessage(err instanceof Error ? err.message : UI.errors.generic)
+      if (undoTimeoutRef.current) window.clearTimeout(undoTimeoutRef.current)
+      undoTimeoutRef.current = window.setTimeout(() => {
+        setUndoToastMessage(null)
+      }, 5000)
     }
   }
 

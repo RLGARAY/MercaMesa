@@ -209,11 +209,12 @@ Al importar, la función `validateBackupPayload`:
 
 ---
 
-### 2026-10-16 — Retención máxima de 3 copias en localBackups y prevención de pérdida de datos (SPEC sección 7)
+### 2026-10-16 — Retención máxima de 3 copias en localBackups, tamaño estimado y gestión de cuota (SPEC sección 7, E3, E4)
 
-**Decisión:** Antes de cualquier operación destructiva (importar archivo, restaurar snapshot local o vaciar datos), se guarda automáticamente un snapshot del estado completo en la tabla `localBackups` con su motivo (`before-import`, `before-restore`, `before-migration`).
-Se conservan estrictamente las **3 copias más recientes**, purgando automáticamente las más antiguas para proteger la cuota de IndexedDB.
-El usuario puede revisar y restaurar cualquiera de estas copias desde la sección "Datos / Test".
+**Decisión:** Antes de cualquier operación destructiva (importar archivo, restaurar snapshot local, migrar esquema o vaciar datos), se guarda automáticamente un snapshot del estado completo en la tabla `localBackups` con su motivo diferenciable (`before-import`, `before-restore`, `before-migration`, `before-reset`).
+Se conservan estrictamente las **3 copias más recientes**, purgando automáticamente las más antiguas dentro de la misma transacción.
+- **Tamaño aproximado:** Con 200 artículos con miniaturas JPEG (~40 KB cada una, ~8 MB en total por snapshot), mantener hasta 3 copias supone un máximo aproximado de **~24 MB** en IndexedDB (muy por debajo de la cuota habitual de varios cientos de MB o GB en Chrome Android, reforzada además con `navigator.storage.persist()`).
+- **Fallo de cuota (`BackupQuotaError`):** Si el guardado en `localBackups` falla por falta de espacio (`QuotaExceededError`), la operación se detiene de forma segura y lanza `BackupQuotaError` con un mensaje claro en español informando de la falta de espacio/cuota. En la interfaz se presenta un modal que recomienda exportar antes a JSON y permite al usuario confirmar explícitamente si desea continuar sin guardar la copia previa (`skipPreBackup: true`).
 
 ---
 

@@ -480,6 +480,22 @@ export async function downloadBackupFile(
 // ---------------------------------------------------------------------------
 
 /**
+ * Error específico cuando IndexedDB rechaza guardar en localBackups por falta de espacio / cuota (E4).
+ */
+export class BackupQuotaError extends Error {
+  constructor(
+    message = 'No hay espacio suficiente (cuota agotada) en el dispositivo para guardar la copia de seguridad previa.',
+  ) {
+    super(message)
+    this.name = 'BackupQuotaError'
+  }
+}
+
+export interface BackupApplyOptions {
+  skipPreBackup?: boolean
+}
+
+/**
  * Guarda una instantánea del estado local completo en la tabla localBackups
  * y conserva un máximo de 3 copias (elimina las más antiguas).
  */
@@ -498,18 +514,26 @@ export async function saveLocalBackup(
     reason,
   }
 
-  await dbInstance.transaction('rw', dbInstance.localBackups, async () => {
-    await dbInstance.localBackups.add(backup)
+  try {
+    await dbInstance.transaction('rw', dbInstance.localBackups, async () => {
+      await dbInstance.localBackups.add(backup)
 
-    // Conservar solo las 3 más recientes
-    const all = await dbInstance.localBackups.orderBy('createdAt').toArray()
-    if (all.length > 3) {
-      const toDelete = all.slice(0, all.length - 3)
-      for (const old of toDelete) {
-        await dbInstance.localBackups.delete(old.id)
+      // Conservar solo las 3 más recientes
+      const all = await dbInstance.localBackups.orderBy('createdAt').toArray()
+      if (all.length > 3) {
+        const toDelete = all.slice(0, all.length - 3)
+        for (const old of toDelete) {
+          await dbInstance.localBackups.delete(old.id)
+        }
       }
+    })
+  } catch (err) {
+    const msg = err instanceof Error ? `${err.name} ${err.message}` : String(err)
+    if (/quota|espacio|storage/i.test(msg)) {
+      throw new BackupQuotaError()
     }
-  })
+    throw err
+  }
 
   return backup
 }
@@ -533,6 +557,7 @@ async function applyBackupPayload(
   rawPayload: BackupPayload,
   reason: LocalBackup['reason'],
   dbInstance: MercaMesaDB = defaultDb,
+  options?: BackupApplyOptions,
 ): Promise<ImportSummary> {
   // 0. Validar todo o nada antes de tocar la base de datos ni crear backups (A2)
   const validation = validateBackupPayload(rawPayload)
@@ -541,8 +566,10 @@ async function applyBackupPayload(
   }
   const payload = validation.payload
 
-  // 1. Guardar copia previa innegociable
-  await saveLocalBackup(reason, dbInstance)
+  // 1. Guardar copia previa innegociable (salvo confirmación explícita ante falta de cuota, E4)
+  if (!options?.skipPreBackup) {
+    await saveLocalBackup(reason, dbInstance)
+  }
 
   // 2. Transacción atómica de reemplazo total
   await dbInstance.transaction(
@@ -625,8 +652,9 @@ async function applyBackupPayload(
 export async function importBackupPayload(
   payload: BackupPayload,
   dbInstance: MercaMesaDB = defaultDb,
+  options?: BackupApplyOptions,
 ): Promise<ImportSummary> {
-  return applyBackupPayload(payload, 'before-import', dbInstance)
+  return applyBackupPayload(payload, 'before-import', dbInstance, options)
 }
 
 /**
@@ -638,6 +666,7 @@ export async function importBackupPayload(
 export async function restoreLocalBackup(
   backupId: ID,
   dbInstance: MercaMesaDB = defaultDb,
+  options?: BackupApplyOptions,
 ): Promise<ImportSummary> {
   const backup = await dbInstance.localBackups.get(backupId)
   if (!backup) {
@@ -649,7 +678,7 @@ export async function restoreLocalBackup(
     throw new Error(`Copia corrupta: ${result.error}`)
   }
 
-  return applyBackupPayload(result.payload, 'before-restore', dbInstance)
+  return applyBackupPayload(result.payload, 'before-restore', dbInstance, options)
 }
 
 // ---------------------------------------------------------------------------
@@ -658,13 +687,16 @@ export async function restoreLocalBackup(
 
 /**
  * Borra todos los datos locales y restablece el estado inicial.
- * Guarda una copia de seguridad previa en localBackups antes de borrar.
+ * Guarda una copia de seguridad previa en localBackups ('before-reset') antes de borrar.
  */
 export async function resetAllData(
   dbInstance: MercaMesaDB = defaultDb,
+  options?: BackupApplyOptions,
 ): Promise<void> {
-  // 1. Guardar copia de seguridad previa
-  await saveLocalBackup('before-migration', dbInstance)
+  // 1. Guardar copia de seguridad previa (E3, E4)
+  if (!options?.skipPreBackup) {
+    await saveLocalBackup('before-reset', dbInstance)
+  }
 
   // 2. Limpiar todas las tablas de negocio
   await dbInstance.transaction(

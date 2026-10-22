@@ -8,6 +8,7 @@ import {
   getLocalBackups,
   restoreLocalBackup,
   resetAllData,
+  BackupQuotaError,
   type BackupPayload,
   type StockInconsistency,
 } from '@/services/backupService'
@@ -56,6 +57,12 @@ export default function DataBackupSection() {
 
   // Estado para discrepancias de stock detectadas tras importar o restaurar (A2)
   const [postImportInconsistencies, setPostImportInconsistencies] = useState<StockInconsistency[]>([])
+
+  // Estado para confirmación cuando localBackups falla por falta de espacio/cuota (E4)
+  const [quotaErrorState, setQuotaErrorState] = useState<{
+    message: string
+    retryWithoutBackup: () => Promise<void>
+  } | null>(null)
 
   const loadBackups = async () => {
     try {
@@ -131,12 +138,13 @@ export default function DataBackupSection() {
   }
 
   // Confirmar importación desde archivo local
-  const handleConfirmImport = async () => {
+  const handleConfirmImport = async (skipPreBackup = false) => {
     if (!pendingPayload) return
     try {
       setLoading(true)
-      const summary = await importBackupPayload(pendingPayload)
+      const summary = await importBackupPayload(pendingPayload, undefined, { skipPreBackup })
       setPendingPayload(null)
+      setQuotaErrorState(null)
       setPostImportInconsistencies(summary.inconsistencies)
       if (fileInputRef.current) fileInputRef.current.value = ''
       await loadBackups()
@@ -146,6 +154,13 @@ export default function DataBackupSection() {
         text: UI.settings.importSuccess,
       })
     } catch (err) {
+      if (err instanceof BackupQuotaError && !skipPreBackup) {
+        setQuotaErrorState({
+          message: err.message,
+          retryWithoutBackup: () => handleConfirmImport(true),
+        })
+        return
+      }
       setStatusMessage({
         type: 'error',
         text: err instanceof Error ? err.message : UI.errors.generic,
@@ -156,12 +171,13 @@ export default function DataBackupSection() {
   }
 
   // 3. Confirmar restauración de copia local
-  const handleConfirmRestore = async () => {
+  const handleConfirmRestore = async (skipPreBackup = false) => {
     if (!backupToRestore) return
     try {
       setLoading(true)
-      const summary = await restoreLocalBackup(backupToRestore.id)
+      const summary = await restoreLocalBackup(backupToRestore.id, undefined, { skipPreBackup })
       setBackupToRestore(null)
+      setQuotaErrorState(null)
       setPostImportInconsistencies(summary.inconsistencies)
       await loadBackups()
       await refreshSyncInfo()
@@ -170,6 +186,13 @@ export default function DataBackupSection() {
         text: UI.settings.importSuccess,
       })
     } catch (err) {
+      if (err instanceof BackupQuotaError && !skipPreBackup) {
+        setQuotaErrorState({
+          message: err.message,
+          retryWithoutBackup: () => handleConfirmRestore(true),
+        })
+        return
+      }
       setStatusMessage({
         type: 'error',
         text: err instanceof Error ? err.message : UI.errors.generic,
@@ -248,12 +271,13 @@ export default function DataBackupSection() {
   }
 
   // Sincronización con Google Drive: Confirmar restauración
-  const handleConfirmDriveRestore = async () => {
+  const handleConfirmDriveRestore = async (skipPreBackup = false) => {
     if (!driveRestorePreview) return
     try {
       setLoading(true)
-      const summary = await applyDriveRestore(driveRestorePreview)
+      const summary = await applyDriveRestore(driveRestorePreview, undefined, { skipPreBackup })
       setDriveRestorePreview(null)
+      setQuotaErrorState(null)
       setPostImportInconsistencies(summary.inconsistencies)
       await refreshSyncInfo()
       await loadBackups()
@@ -262,6 +286,13 @@ export default function DataBackupSection() {
         text: UI.settings.driveRestoreSuccess,
       })
     } catch (err) {
+      if (err instanceof BackupQuotaError && !skipPreBackup) {
+        setQuotaErrorState({
+          message: err.message,
+          retryWithoutBackup: () => handleConfirmDriveRestore(true),
+        })
+        return
+      }
       setStatusMessage({
         type: 'error',
         text: err instanceof Error ? err.message : UI.errors.generic,
@@ -291,12 +322,13 @@ export default function DataBackupSection() {
   }
 
   // 5. Confirmar reseteo total (zona de peligro RF-C11)
-  const handleConfirmDeleteAll = async () => {
+  const handleConfirmDeleteAll = async (skipPreBackup = false) => {
     if (deleteConfirmationText.trim().toUpperCase() !== 'BORRAR') return
     try {
       setLoading(true)
-      await resetAllData()
+      await resetAllData(undefined, { skipPreBackup })
       setShowDeleteModal(false)
+      setQuotaErrorState(null)
       setDeleteConfirmationText('')
       await loadBackups()
       await refreshSyncInfo()
@@ -304,10 +336,17 @@ export default function DataBackupSection() {
         type: 'success',
         text: UI.settings.resetSuccess,
       })
-    } catch {
+    } catch (err) {
+      if (err instanceof BackupQuotaError && !skipPreBackup) {
+        setQuotaErrorState({
+          message: err.message,
+          retryWithoutBackup: () => handleConfirmDeleteAll(true),
+        })
+        return
+      }
       setStatusMessage({
         type: 'error',
-        text: UI.errors.generic,
+        text: err instanceof Error ? err.message : UI.errors.generic,
       })
     } finally {
       setLoading(false)
@@ -320,8 +359,10 @@ export default function DataBackupSection() {
         return 'Antes de importar archivo'
       case 'before-restore':
         return 'Antes de restaurar copia'
+      case 'before-reset':
+        return 'Antes de borrar datos'
       case 'before-migration':
-        return 'Antes de borrar / migrar'
+        return 'Antes de migrar esquema'
       default:
         return reason
     }
@@ -603,7 +644,7 @@ export default function DataBackupSection() {
               </button>
               <button
                 type="button"
-                onClick={handleConfirmImport}
+                onClick={() => handleConfirmImport(false)}
                 disabled={loading}
                 className="flex-1 py-3 px-4 bg-brand-600 hover:bg-brand-700 text-white font-semibold rounded-xl text-xs min-h-[48px]"
               >
@@ -646,7 +687,7 @@ export default function DataBackupSection() {
               </button>
               <button
                 type="button"
-                onClick={handleConfirmRestore}
+                onClick={() => handleConfirmRestore(false)}
                 disabled={loading}
                 className="flex-1 py-3 px-4 bg-brand-600 hover:bg-brand-700 text-white font-semibold rounded-xl text-xs min-h-[48px]"
               >
@@ -742,7 +783,7 @@ export default function DataBackupSection() {
               </button>
               <button
                 type="button"
-                onClick={handleConfirmDriveRestore}
+                onClick={() => handleConfirmDriveRestore(false)}
                 disabled={loading}
                 className="flex-1 py-3 px-4 bg-sky-600 hover:bg-sky-700 text-white font-semibold rounded-xl text-xs min-h-[48px]"
               >
@@ -796,7 +837,7 @@ export default function DataBackupSection() {
             </button>
             <button
               type="button"
-              onClick={handleConfirmDeleteAll}
+              onClick={() => handleConfirmDeleteAll(false)}
               disabled={loading || deleteConfirmationText.trim().toUpperCase() !== 'BORRAR'}
               className="flex-1 py-3 px-4 bg-rose-600 hover:bg-rose-700 disabled:bg-rose-300 text-white font-semibold rounded-xl text-xs transition-colors min-h-[48px]"
             >
@@ -804,6 +845,42 @@ export default function DataBackupSection() {
             </button>
           </div>
         </div>
+      </Modal>
+
+      {/* Modal: Falta de espacio en localBackups (E4) */}
+      <Modal
+        title="Espacio de almacenamiento agotado"
+        isOpen={Boolean(quotaErrorState)}
+        onClose={() => setQuotaErrorState(null)}
+      >
+        {quotaErrorState && (
+          <div className="p-4 space-y-4 text-left">
+            <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900 space-y-1.5">
+              <p className="font-bold">⚠️ {quotaErrorState.message}</p>
+              <p>
+                Te recomendamos exportar primero tus datos a un archivo JSON. Si decides continuar ahora, la operación se realizará sin guardar la copia previa automática en el dispositivo.
+              </p>
+            </div>
+            <div className="flex gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setQuotaErrorState(null)}
+                disabled={loading}
+                className="flex-1 py-3 px-4 border border-gray-300 rounded-xl text-gray-700 font-semibold text-xs hover:bg-gray-50 min-h-[48px]"
+              >
+                {UI.common.cancel}
+              </button>
+              <button
+                type="button"
+                onClick={() => quotaErrorState.retryWithoutBackup()}
+                disabled={loading}
+                className="flex-1 py-3 px-4 bg-amber-600 hover:bg-amber-700 text-white font-semibold rounded-xl text-xs min-h-[48px]"
+              >
+                {loading ? UI.common.loading : 'Continuar sin copia previa'}
+              </button>
+            </div>
+          </div>
+        )}
       </Modal>
     </div>
   )

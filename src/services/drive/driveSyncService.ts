@@ -18,6 +18,7 @@ import {
   saveLocalBackup,
   CART_STORAGE_KEY,
   type BackupPayload,
+  type BackupApplyOptions,
   type ImportSummary,
 } from '@/services/backupService'
 import { verifyStockConsistency } from '@/services/itemService'
@@ -161,6 +162,7 @@ export async function fetchDriveRestorePreview(
 export async function applyDriveRestore(
   preview: DriveRestorePreview,
   dbInstance: MercaMesaDB = defaultDb,
+  options?: BackupApplyOptions,
 ): Promise<ImportSummary> {
   const { remoteMeta } = preview
   const validation = validateBackupPayload(preview.payload)
@@ -169,8 +171,10 @@ export async function applyDriveRestore(
   }
   const payload = validation.payload
 
-  // 1. Guardar copia de seguridad previa innegociable
-  await saveLocalBackup('before-restore', dbInstance)
+  // 1. Guardar copia de seguridad previa innegociable (salvo confirmación explícita ante falta de cuota, E4)
+  if (!options?.skipPreBackup) {
+    await saveLocalBackup('before-restore', dbInstance)
+  }
 
   const syncedAt = new Date().toISOString()
 

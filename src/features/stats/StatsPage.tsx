@@ -36,6 +36,7 @@ export default function StatsPage() {
   const [selectedSale, setSelectedSale] = useState<Sale | null>(null)
   const [isVoiding, setIsVoiding] = useState(false)
   const [showVoidConfirm, setShowVoidConfirm] = useState(false)
+  const [voidError, setVoidError] = useState<string | null>(null)
 
   // Consultas reactivas desde IndexedDB
   const allSales = useLiveQuery(() => db.sales.toArray(), [])
@@ -114,11 +115,12 @@ export default function StatsPage() {
     if (!selectedSale) return
     try {
       setIsVoiding(true)
+      setVoidError(null)
       await voidSale(selectedSale.id)
       setSelectedSale(null)
       setShowVoidConfirm(false)
     } catch (err) {
-      alert(err instanceof Error ? err.message : UI.errors.generic)
+      setVoidError(err instanceof Error ? err.message : UI.errors.generic)
     } finally {
       setIsVoiding(false)
     }
@@ -396,6 +398,7 @@ export default function StatsPage() {
                   onClick={() => {
                     setSelectedSale(sale)
                     setShowVoidConfirm(false)
+                    setVoidError(null)
                   }}
                   className="w-full py-2.5 flex items-center justify-between text-left hover:bg-gray-50 transition-colors"
                 >
@@ -479,10 +482,21 @@ export default function StatsPage() {
       <Modal
         title={selectedSale ? 'Detalle de venta' : ''}
         isOpen={Boolean(selectedSale)}
-        onClose={() => setSelectedSale(null)}
+        onClose={() => {
+          setSelectedSale(null)
+          setVoidError(null)
+        }}
       >
         {selectedSale && (
           <div className="space-y-4 text-left">
+            {voidError && (
+              <div
+                role="alert"
+                className="p-3 bg-red-50 border border-red-200 text-red-700 rounded-xl text-xs font-medium"
+              >
+                {voidError}
+              </div>
+            )}
             <div className="p-3 bg-gray-50 rounded-xl border border-gray-200 text-xs space-y-1">
               <div className="flex justify-between">
                 <span className="text-gray-500">Fecha y hora</span>
