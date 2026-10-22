@@ -354,8 +354,42 @@ export function getRelevantHourlySales(
 }
 
 // ---------------------------------------------------------------------------
-// Artículos sin ventas y alertas (RF-E7)
+// Artículos sin ventas y alertas de stock (RF-E7, C1)
 // ---------------------------------------------------------------------------
+
+/** Umbral por defecto para considerar un artículo con poco stock (RF-E7). */
+export const DEFAULT_LOW_STOCK_THRESHOLD = 2
+
+export type StockLevel = 'ok' | 'low' | 'zero' | 'negative'
+
+/**
+ * Clasifica el nivel de stock de un artículo distinguiendo:
+ * - 'negative': stock < 0
+ * - 'zero': stock === 0 (agotado)
+ * - 'low': 1 <= stock <= lowStockThreshold (aviso de poco stock)
+ * - 'ok': stock > lowStockThreshold
+ */
+export function classifyStockLevel(
+  stock: number,
+  lowStockThreshold: number = DEFAULT_LOW_STOCK_THRESHOLD,
+): StockLevel {
+  if (stock < 0) return 'negative'
+  if (stock === 0) return 'zero'
+  if (stock <= lowStockThreshold) return 'low'
+  return 'ok'
+}
+
+/**
+ * Filtra artículos activos cuyo stock es crítico (bajo, cero o negativo) según el umbral.
+ */
+export function findCriticalStockItems(
+  allItems: Item[],
+  lowStockThreshold: number = DEFAULT_LOW_STOCK_THRESHOLD,
+): Item[] {
+  return allItems.filter(
+    item => !item.archived && classifyStockLevel(item.stock, lowStockThreshold) !== 'ok',
+  )
+}
 
 /**
  * Identifica artículos activos que no tuvieron ninguna venta en el periodo.

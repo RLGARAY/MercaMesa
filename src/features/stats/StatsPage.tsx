@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { db } from '@/db/db'
+import { db, META_KEY } from '@/db/db'
 import type { Sale } from '@/types'
 import { UI } from '@/i18n'
 import { formatCents, centsToEuros } from '@/domain/money'
@@ -11,6 +11,9 @@ import {
   calculateCategoryMetrics,
   getRelevantHourlySales,
   findItemsWithoutSales,
+  findCriticalStockItems,
+  classifyStockLevel,
+  DEFAULT_LOW_STOCK_THRESHOLD,
   type PeriodType,
 } from '@/domain/stats'
 import { voidSale } from '@/services/saleService'
@@ -38,6 +41,8 @@ export default function StatsPage() {
   const allSales = useLiveQuery(() => db.sales.toArray(), [])
   const allItems = useLiveQuery(() => db.items.toArray(), [])
   const allCategories = useLiveQuery(() => db.categories.toArray(), [])
+  const meta = useLiveQuery(() => db.meta.get(META_KEY), [])
+  const lowStockThreshold = meta?.lowStockThreshold ?? DEFAULT_LOW_STOCK_THRESHOLD
 
   // 1. Filtrar ventas por el periodo seleccionado (RF-E1, RF-E8)
   const filteredSales = useMemo(() => {
@@ -86,7 +91,7 @@ export default function StatsPage() {
     }))
   }, [filteredSales])
 
-  // 6. Artículos sin ventas y alertas de stock (RF-E7, Decisión 5)
+  // 6. Artículos sin ventas y alertas de stock (RF-E7, C1)
   const itemsWithoutSales = useMemo(() => {
     if (!allItems) return []
     return findItemsWithoutSales(allItems, filteredSales)
@@ -94,8 +99,8 @@ export default function StatsPage() {
 
   const criticalStockItems = useMemo(() => {
     if (!allItems) return []
-    return allItems.filter(item => !item.archived && item.stock <= 1)
-  }, [allItems])
+    return findCriticalStockItems(allItems, lowStockThreshold)
+  }, [allItems, lowStockThreshold])
 
   // Ventas recientes del periodo (RF-E6)
   const recentSales = useMemo(() => {
@@ -413,28 +418,40 @@ export default function StatsPage() {
 
         {/* ALERTAS: ARTÍCULOS SIN VENTAS Y STOCK CRÍTICO (RF-E7, Decisión 5) */}
         <section className="space-y-4">
-          {/* Stock crítico */}
+          {/* Stock crítico (RF-E7, C1) */}
           {criticalStockItems.length > 0 && (
             <div className="p-4 bg-amber-50/70 border border-amber-200 rounded-2xl space-y-2">
               <div className="flex items-center gap-1.5 font-bold text-amber-900 text-sm">
                 <span>⚠️</span>
-                <span>Artículos con stock crítico ({criticalStockItems.length})</span>
+                <span>Artículos con stock crítico (≤ {lowStockThreshold} uds) ({criticalStockItems.length})</span>
               </div>
               <div className="divide-y divide-amber-200/50 text-xs">
-                {criticalStockItems.map((item) => (
-                  <div key={item.id} className="py-2 flex items-center justify-between">
-                    <span className="font-semibold text-gray-900">{item.name}</span>
-                    <span
-                      className={`font-bold px-2 py-0.5 rounded text-[11px] ${
-                        item.stock === 1
-                          ? 'bg-amber-200 text-amber-900'
-                          : 'bg-red-100 text-red-800'
-                      }`}
-                    >
-                      {item.stock === 1 ? UI.sale.lastUnit : item.stock === 0 ? UI.sale.outOfStock : `Stock: ${item.stock}`}
-                    </span>
-                  </div>
-                ))}
+                {criticalStockItems.map((item) => {
+                  const level = classifyStockLevel(item.stock, lowStockThreshold)
+                  const badgeClass =
+                    level === 'low'
+                      ? 'bg-amber-200 text-amber-900 border border-amber-300'
+                      : level === 'zero'
+                      ? 'bg-gray-200 text-gray-800 border border-gray-300'
+                      : 'bg-red-100 text-red-800 border border-red-300'
+                  const badgeText =
+                    level === 'low'
+                      ? item.stock === 1
+                        ? `${UI.sale.lastUnit} (1)`
+                        : `Poco stock (${item.stock})`
+                      : level === 'zero'
+                      ? `${UI.sale.outOfStock} (0)`
+                      : `Stock negativo (${item.stock})`
+
+                  return (
+                    <div key={item.id} className="py-2 flex items-center justify-between">
+                      <span className="font-semibold text-gray-900">{item.name}</span>
+                      <span className={`font-bold px-2 py-0.5 rounded text-[11px] ${badgeClass}`}>
+                        {badgeText}
+                      </span>
+                    </div>
+                  )
+                })}
               </div>
             </div>
           )}

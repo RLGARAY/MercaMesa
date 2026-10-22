@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { MercaMesaDB, initDB, SCHEMA_VERSION } from '@/db/db'
+import { MercaMesaDB, initDB, SCHEMA_VERSION, setLowStockThreshold, META_KEY } from '@/db/db'
 import {
   validateBackupPayload,
   parseAndValidateBackup,
@@ -584,6 +584,19 @@ describe('backupService (RF-C6, RF-C7, RF-C11)', () => {
       const backups = await getLocalBackups(testDb)
       const latest = backups[0]
       expect(latest?.reason).toBe('before-restore')
+    })
+
+    it('guarda lowStockThreshold en meta ("main"), no lo incluye en el archivo de copia y lo preserva al importar (C1, #6)', async () => {
+      await setLowStockThreshold(4, testDb)
+      const metaBefore = await testDb.meta.get(META_KEY)
+      expect(metaBefore?.lowStockThreshold).toBe(4)
+
+      const exported = await createBackupPayload(testDb)
+      expect('lowStockThreshold' in (exported as unknown as Record<string, unknown>)).toBe(false)
+
+      await importBackupPayload(exported, testDb)
+      const metaAfter = await testDb.meta.get(META_KEY)
+      expect(metaAfter?.lowStockThreshold).toBe(4)
     })
   })
 })

@@ -113,6 +113,7 @@ interface Meta {              // una sola fila (clave primaria fija 'main')
   lastSyncedRevision: number; // última revisión de Drive conocida
   lastSyncedAt?: string;
   driveFileId?: string;
+  lowStockThreshold?: number; // preferencia local del dispositivo para aviso de poco stock (por defecto 2)
 }
 ```
 

@@ -179,3 +179,29 @@ export async function initDB(dbInstance: MercaMesaDB = db): Promise<void> {
     ])
   }
 }
+
+/**
+ * Guarda el umbral de aviso de poco stock como preferencia del dispositivo en `meta` ('main').
+ * No forma parte del archivo de copia de seguridad (C1, #6).
+ */
+export async function setLowStockThreshold(
+  threshold: number,
+  dbInstance: MercaMesaDB = db,
+): Promise<void> {
+  if (!Number.isInteger(threshold) || threshold < 1) {
+    throw new Error('El umbral de poco stock debe ser un número entero mayor o igual a 1')
+  }
+
+  const existing = await dbInstance.meta.get(META_KEY)
+  if (existing) {
+    await dbInstance.meta.update(META_KEY, { lowStockThreshold: threshold })
+  } else {
+    await dbInstance.meta.put({
+      id: META_KEY,
+      schemaVersion: SCHEMA_VERSION,
+      deviceId: crypto.randomUUID(),
+      lastSyncedRevision: 0,
+      lowStockThreshold: threshold,
+    })
+  }
+}

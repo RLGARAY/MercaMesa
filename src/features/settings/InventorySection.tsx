@@ -1,9 +1,10 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { db } from '@/db/db'
+import { db, META_KEY, setLowStockThreshold } from '@/db/db'
 import type { Item, StockAdjustment, ID } from '@/types'
 import { UI } from '@/i18n'
 import { adjustStock, setStockAbsolute, getAdjustmentsByItem } from '@/services/itemService'
+import { classifyStockLevel, DEFAULT_LOW_STOCK_THRESHOLD } from '@/domain/stats'
 import { parseStrictIntegerString } from '@/domain/validation'
 import Modal from '@/components/Modal'
 
@@ -32,6 +33,36 @@ export default function InventorySection() {
     () => db.categories.toArray(),
     [],
   )
+
+  const meta = useLiveQuery(
+    () => db.meta.get(META_KEY),
+    [],
+  )
+  const lowStockThreshold = meta?.lowStockThreshold ?? DEFAULT_LOW_STOCK_THRESHOLD
+  const [thresholdInput, setThresholdInput] = useState<string>(String(lowStockThreshold))
+  const [thresholdError, setThresholdError] = useState<string | null>(null)
+  const [thresholdSaved, setThresholdSaved] = useState(false)
+
+  useEffect(() => {
+    setThresholdInput(String(lowStockThreshold))
+  }, [lowStockThreshold])
+
+  const handleSaveThreshold = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setThresholdError(null)
+    setThresholdSaved(false)
+    const parsed = parseStrictIntegerString(thresholdInput, { allowNegative: false })
+    if (parsed === null || parsed < 1) {
+      setThresholdError('Introduce un número entero mayor o igual a 1')
+      return
+    }
+    try {
+      await setLowStockThreshold(parsed)
+      setThresholdSaved(true)
+    } catch (err) {
+      setThresholdError(err instanceof Error ? err.message : UI.errors.generic)
+    }
+  }
 
   const filteredItems = items?.filter(item => (showArchived ? true : !item.archived)) ?? []
 
@@ -114,15 +145,58 @@ export default function InventorySection() {
         </label>
       </div>
 
+      {/* Ajuste del umbral de stock bajo (RF-E7, C1) */}
+      <form
+        onSubmit={handleSaveThreshold}
+        className="p-3.5 bg-white rounded-2xl border border-gray-200 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+      >
+        <div>
+          <label htmlFor="low-stock-threshold-input" className="text-xs font-bold text-gray-800 block">
+            Umbral de aviso de poco stock (≤ unidades)
+          </label>
+          <p className="text-[11px] text-gray-500">
+            Preferencia de este dispositivo (por defecto ≤ {DEFAULT_LOW_STOCK_THRESHOLD}). No se incluye en las copias de seguridad.
+          </p>
+          {thresholdError && (
+            <p className="text-xs text-red-600 font-semibold mt-1" role="alert">
+              {thresholdError}
+            </p>
+          )}
+          {thresholdSaved && !thresholdError && (
+            <p className="text-xs text-green-700 font-semibold mt-1" role="status">
+              Umbral guardado ({lowStockThreshold} uds).
+            </p>
+          )}
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <input
+            id="low-stock-threshold-input"
+            type="number"
+            inputMode="numeric"
+            min={1}
+            value={thresholdInput}
+            onChange={(e) => {
+              setThresholdInput(e.target.value)
+              setThresholdSaved(false)
+            }}
+            className="w-20 px-2.5 py-2 border border-gray-300 rounded-xl text-sm font-bold text-center min-h-12"
+          />
+          <button
+            type="submit"
+            className="px-3.5 py-2 bg-brand-600 hover:bg-brand-700 active:bg-brand-800 text-white font-bold text-xs rounded-xl min-h-12 transition-colors"
+          >
+            {UI.common.save}
+          </button>
+        </div>
+      </form>
+
       {/* Lista de artículos */}
       <div className="divide-y divide-gray-100 bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
         {filteredItems.length === 0 ? (
           <p className="p-6 text-center text-gray-400 text-sm">{UI.common.empty}</p>
         ) : (
           filteredItems.map((item) => {
-            const isLastUnit = item.stock === 1
-            const isOutOfStock = item.stock === 0
-            const isNegative = item.stock < 0
+            const stockLevel = classifyStockLevel(item.stock, lowStockThreshold)
 
             return (
               <div
@@ -147,19 +221,19 @@ export default function InventorySection() {
                     <span className="text-xs font-bold text-gray-800">
                       Stock: <span className="text-sm font-extrabold">{item.stock}</span>
                     </span>
-                    {isLastUnit && (
-                      <span className="text-[10px] font-semibold bg-amber-100 text-amber-800 px-1.5 py-0.2 rounded">
-                        {UI.sale.lastUnit}
+                    {stockLevel === 'low' && (
+                      <span className="text-[10px] font-semibold bg-amber-100 text-amber-900 border border-amber-300 px-1.5 py-0.5 rounded">
+                        {item.stock === 1 ? `${UI.sale.lastUnit} (1)` : `Poco stock (${item.stock})`}
                       </span>
                     )}
-                    {isOutOfStock && (
-                      <span className="text-[10px] font-medium bg-gray-100 text-gray-600 px-1.5 py-0.2 rounded">
-                        {UI.sale.outOfStock}
+                    {stockLevel === 'zero' && (
+                      <span className="text-[10px] font-semibold bg-gray-200 text-gray-800 border border-gray-300 px-1.5 py-0.5 rounded">
+                        {UI.sale.outOfStock} (0)
                       </span>
                     )}
-                    {isNegative && (
-                      <span className="text-[10px] font-bold bg-red-100 text-red-700 px-1.5 py-0.2 rounded">
-                        Stock negativo
+                    {stockLevel === 'negative' && (
+                      <span className="text-[10px] font-bold bg-red-100 text-red-800 border border-red-300 px-1.5 py-0.5 rounded">
+                        Stock negativo ({item.stock})
                       </span>
                     )}
                   </div>

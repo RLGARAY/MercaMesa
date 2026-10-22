@@ -575,13 +575,17 @@ async function applyBackupPayload(
         await dbInstance.adjustments.bulkAdd(payload.adjustments)
       }
 
-      // Actualizar registro Meta bajo clave fija 'main'
+      // Actualizar registro Meta bajo clave fija 'main' preservando preferencias locales del dispositivo (C1)
+      const prevMeta = await dbInstance.meta.get(META_KEY)
       await dbInstance.meta.clear()
       await dbInstance.meta.put({
         id: META_KEY,
         schemaVersion: SCHEMA_VERSION,
         deviceId: payload.deviceId,
         lastSyncedRevision: payload.revision,
+        ...(prevMeta?.lowStockThreshold !== undefined
+          ? { lowStockThreshold: prevMeta.lowStockThreshold }
+          : {}),
       })
     },
   )

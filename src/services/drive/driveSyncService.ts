@@ -203,6 +203,7 @@ export async function applyDriveRestore(
         await dbInstance.adjustments.bulkAdd(payload.adjustments)
       }
 
+      const prevMeta = await dbInstance.meta.get(META_KEY)
       await dbInstance.meta.clear()
       await dbInstance.meta.put({
         id: META_KEY,
@@ -211,6 +212,9 @@ export async function applyDriveRestore(
         lastSyncedRevision: remoteMeta.revision,
         lastSyncedAt: syncedAt,
         driveFileId: remoteMeta.fileId,
+        ...(prevMeta?.lowStockThreshold !== undefined
+          ? { lowStockThreshold: prevMeta.lowStockThreshold }
+          : {}),
       })
     },
   )

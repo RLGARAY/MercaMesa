@@ -71,6 +71,7 @@ export interface Meta {
   lastSyncedRevision: number // última revisión de Drive conocida
   lastSyncedAt?: string     // ISO 8601 UTC
   driveFileId?: string      // ID del archivo en Google Drive
+  lowStockThreshold?: number // Umbral local de aviso de poco stock (por defecto 2, RF-E7)
 }
 
 /** Copia de seguridad local guardada antes de importar/restaurar (SPEC sección 7) */

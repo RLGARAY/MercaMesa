@@ -51,15 +51,15 @@
 
 ---
 
-### 2026-10-16 — Indicador de stock: solo "Última unidad" (stock = 1)
+### 2026-10-21 — Umbral de stock bajo configurable (≤ 2 por defecto) y distinción visual de cero y negativo (C1, #6)
 
-**Decisión:** Mostrar chip "Última unidad" solo cuando `stock === 1`. Sin umbral configurable. Stock ≤ 0 muestra aviso diferente (sin stock / stock negativo).
+**Decisión:** El umbral de aviso de "poco stock" es **≤ 2 unidades por defecto** y **configurable** desde la sección Inventario de Ajustes (cumpliendo RF-E7 del SPEC). La preferencia se guarda localmente en el registro `meta` (`'main'`, campo `lowStockThreshold`) y no se incluye en el archivo de copia de seguridad (se preserva la preferencia local del dispositivo al importar o restaurar copias).
+Se emplean colores y etiquetas de texto diferenciados para los tres estados de alerta:
+- **Poco stock (`1 ≤ stock ≤ lowStockThreshold`):** aviso ámbar (`¡Última unidad! (1)` o `Poco stock (N)`).
+- **Cero (`stock === 0`):** gris pizarra (`Sin stock (0)`).
+- **Negativo (`stock < 0`):** rojo (`Stock negativo (-N)`).
 
-**Motivo:** El usuario prefirió esta opción más simple y clara frente al umbral configurable de 2 unidades que sugería el SPEC (sección 14).
-
-**Cambio respecto al SPEC:** RF-E7 menciona "poco stock (≤ 2, valor configurable)". Esta decisión simplifica a un solo umbral fijo (= 1) y elimina la configurabilidad.
-
-**Alternativa descartada:** Umbral configurable en Ajustes (más complejo, más casos de prueba).
+**Cambio respecto a decisión previa:** Se elimina la decisión anterior del 2026-10-16 que fijaba el aviso únicamente en `stock === 1` sin umbral configurable, alineando la implementación al 100% con RF-E7 del SPEC.
 
 ---
 

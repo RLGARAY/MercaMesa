@@ -8,6 +8,9 @@ import {
   calculateHourlySales,
   getRelevantHourlySales,
   findItemsWithoutSales,
+  classifyStockLevel,
+  findCriticalStockItems,
+  DEFAULT_LOW_STOCK_THRESHOLD,
 } from '@/domain/stats'
 
 describe('stats domain logic (RF-E1 a RF-E8)', () => {
@@ -377,11 +380,52 @@ describe('stats domain logic (RF-E1 a RF-E8)', () => {
     })
   })
 
-  describe('findItemsWithoutSales (RF-E7)', () => {
+  describe('findItemsWithoutSales y stock bajo/cero/negativo (RF-E7, C1, #6)', () => {
     it('detecta artículos activos sin ventas en el periodo', () => {
       const withoutSales = findItemsWithoutSales([item1, item2, item3], [sale1, sale2])
       expect(withoutSales).toHaveLength(1)
       expect(withoutSales[0]?.id).toBe('item-3')
+    })
+
+    it('usa umbral por defecto <= 2, permite umbral configurable y distingue stock bajo, cero y negativo (C1, #6)', () => {
+      expect(DEFAULT_LOW_STOCK_THRESHOLD).toBe(2)
+
+      // Por defecto (umbral = 2): 2 y 1 son 'low', 0 es 'zero', -1 es 'negative', 3 es 'ok'
+      expect(classifyStockLevel(3)).toBe('ok')
+      expect(classifyStockLevel(2)).toBe('low')
+      expect(classifyStockLevel(1)).toBe('low')
+      expect(classifyStockLevel(0)).toBe('zero')
+      expect(classifyStockLevel(-2)).toBe('negative')
+
+      // Con umbral configurado en 4: 4 es 'low', 5 es 'ok'
+      expect(classifyStockLevel(4, 4)).toBe('low')
+      expect(classifyStockLevel(5, 4)).toBe('ok')
+
+      const sampleItems: Item[] = [
+        { ...item1, id: 'i-ok', stock: 5 },
+        { ...item1, id: 'i-low2', stock: 2 },
+        { ...item1, id: 'i-low1', stock: 1 },
+        { ...item1, id: 'i-zero', stock: 0 },
+        { ...item1, id: 'i-neg', stock: -1 },
+        { ...item3, id: 'i-arch', stock: 0, archived: true },
+      ]
+
+      // Con umbral por defecto (2) incluye 2, 1, 0 y -1 (excluye archivados y > 2)
+      expect(findCriticalStockItems(sampleItems).map(i => i.id)).toEqual([
+        'i-low2',
+        'i-low1',
+        'i-zero',
+        'i-neg',
+      ])
+
+      // Con umbral = 5 incluye también i-ok
+      expect(findCriticalStockItems(sampleItems, 5).map(i => i.id)).toEqual([
+        'i-ok',
+        'i-low2',
+        'i-low1',
+        'i-zero',
+        'i-neg',
+      ])
     })
   })
 })

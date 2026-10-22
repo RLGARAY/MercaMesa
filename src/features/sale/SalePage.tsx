@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { db } from '@/db/db'
+import { db, META_KEY } from '@/db/db'
 import type { Item, Sale, ID } from '@/types'
 import { UI } from '@/i18n'
 import { formatCents } from '@/domain/money'
+import { classifyStockLevel, DEFAULT_LOW_STOCK_THRESHOLD } from '@/domain/stats'
 import { voidSale } from '@/services/saleService'
 import Modal from '@/components/Modal'
 import ItemForm from '@/features/items/ItemForm'
@@ -41,6 +42,12 @@ export default function SalePage() {
     () => db.items.filter(item => !item.archived).toArray(),
     [],
   )
+
+  const meta = useLiveQuery(
+    () => db.meta.get(META_KEY),
+    [],
+  )
+  const lowStockThreshold = meta?.lowStockThreshold ?? DEFAULT_LOW_STOCK_THRESHOLD
 
   // Filtro de artículos por categoría
   const filteredItems = useMemo(() => {
@@ -250,9 +257,7 @@ export default function SalePage() {
             ) : (
               filteredItems?.map((item) => {
                 const qty = getQuantity(item.id)
-                const isLastUnit = item.stock === 1
-                const isOutOfStock = item.stock === 0
-                const isNegativeStock = item.stock < 0
+                const stockLevel = classifyStockLevel(item.stock, lowStockThreshold)
                 const exceedsStock = qty > item.stock // RF-V8, RN-3
 
                 return (
@@ -317,23 +322,23 @@ export default function SalePage() {
                             {formatCents(item.priceCents)}
                           </span>
 
-                          {/* Chips de stock (Decisión 5) */}
-                          {isLastUnit && (
-                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-100 text-amber-800">
-                              {UI.sale.lastUnit}
+                          {/* Chips de stock (RF-E7, C1: colores y textos distintos para bajo, cero y negativo) */}
+                          {stockLevel === 'low' && (
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-100 text-amber-900 border border-amber-300">
+                              {item.stock === 1 ? `${UI.sale.lastUnit} (1)` : `Poco stock (${item.stock})`}
                             </span>
                           )}
-                          {isOutOfStock && (
-                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-gray-100 text-gray-600">
-                              {UI.sale.outOfStock}
+                          {stockLevel === 'zero' && (
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-gray-200 text-gray-800 border border-gray-300">
+                              {UI.sale.outOfStock} (0)
                             </span>
                           )}
-                          {isNegativeStock && (
-                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-700">
-                              Stock: {item.stock}
+                          {stockLevel === 'negative' && (
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-800 border border-red-300">
+                              Stock negativo ({item.stock})
                             </span>
                           )}
-                          {!isLastUnit && !isOutOfStock && !isNegativeStock && (
+                          {stockLevel === 'ok' && (
                             <span className="text-xs text-gray-400">
                               Stock: {item.stock}
                             </span>
