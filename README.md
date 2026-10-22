@@ -114,6 +114,17 @@ La sincronización con Google Drive funciona en el navegador mediante **Google I
 
 > **Nota para el usuario:** Debes probar el inicio de sesión real en tu navegador con tu Client ID configurado.
 
+## Despliegue en GitHub Pages
+
+El proyecto incluye el workflow `.github/workflows/deploy.yml` que ejecuta los tests, compila la PWA inyectando automáticamente `BASE_PATH: /${{ github.event.repository.name }}/` y publica la carpeta `dist` en GitHub Pages.
+
+### Pasos manuales en GitHub
+
+1. En el repositorio de GitHub, entra en **Settings → Pages**.
+2. En **Build and deployment → Source**, selecciona **GitHub Actions**.
+3. (Opcional, para Google Drive en producción) En **Settings → Secrets and variables → Actions → Variables**, crea la variable de repositorio `VITE_GOOGLE_CLIENT_ID` con tu ID de cliente OAuth y asegúrate de añadir `https://USUARIO.github.io` en los **Orígenes autorizados de JavaScript** de Google Cloud Console.
+4. Al hacer `push` a la rama `main` (o lanzando el workflow manualmente desde la pestaña **Actions**), la PWA quedará publicada e instalable en `https://USUARIO.github.io/NOMBRE_REPO/`.
+
 ## Fases de desarrollo
 
 | Fase | Estado | Descripción |
