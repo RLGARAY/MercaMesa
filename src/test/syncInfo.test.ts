@@ -1,9 +1,9 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { renderHook, act } from '@testing-library/react'
+import { renderHook, act, waitFor } from '@testing-library/react'
 import { useSyncInfo } from '@/hooks/useSyncInfo'
 import { db, SCHEMA_VERSION, META_KEY } from '@/db/db'
 
-describe('useSyncInfo (RF-C9)', () => {
+describe('useSyncInfo (RF-C9, C4)', () => {
   beforeEach(async () => {
     await db.meta.clear()
     await db.meta.put({
@@ -48,5 +48,29 @@ describe('useSyncInfo (RF-C9)', () => {
 
     expect(resultRef.current.lastSyncedRevision).toBe(3)
     expect(resultRef.current.formattedRelative).toBe('Hace unos segundos')
+  })
+
+  it('actualiza automáticamente la cabecera al cambiar meta en la base de datos sin llamar a refreshSyncInfo en esa instancia (C4)', async () => {
+    const { result } = renderHook(() => useSyncInfo())
+
+    await waitFor(() => {
+      expect(result.current.lastSyncedRevision).toBe(0)
+    })
+
+    const nowIso = new Date().toISOString()
+    await act(async () => {
+      await db.meta.update(META_KEY, {
+        lastSyncedRevision: 5,
+        lastSyncedAt: nowIso,
+      })
+    })
+
+    await waitFor(
+      () => {
+        expect(result.current.lastSyncedRevision).toBe(5)
+        expect(result.current.formattedRelative).toBe('Hace unos segundos')
+      },
+      { timeout: 400 },
+    )
   })
 })
