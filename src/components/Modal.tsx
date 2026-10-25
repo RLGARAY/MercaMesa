@@ -59,7 +59,7 @@ export default function Modal({ title, isOpen, onClose, children }: ModalProps) 
             type="button"
             onClick={onClose}
             aria-label={UI.common.close}
-            className="flex items-center justify-center w-12 h-12 text-gray-500 hover:text-gray-700 active:bg-gray-100 rounded-full transition-colors"
+            className="flex items-center justify-center w-12 h-12 min-w-[48px] min-h-[48px] p-2.5 shrink-0 text-gray-500 hover:text-gray-700 active:bg-gray-100 rounded-full transition-colors"
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"

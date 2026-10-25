@@ -189,7 +189,7 @@ export default function CartDrawer({
                 </div>
 
                 {/* Selector − / + de cantidad */}
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-1.5">
                   <button
                     type="button"
                     onClick={() => onRemoveFromCart(item.id)}
@@ -198,7 +198,7 @@ export default function CartDrawer({
                   >
                     −
                   </button>
-                  <span className="w-8 text-center font-bold text-sm text-gray-900">
+                  <span className="min-w-[2rem] px-1 text-center font-bold text-sm text-gray-900">
                     {quantity}
                   </span>
                   <button
@@ -222,7 +222,7 @@ export default function CartDrawer({
 
       {/* Bloque de Descuento (RF-V5, RN-4) */}
       <div className="mt-3 pt-3 border-t border-gray-200 space-y-3">
-        <label className="flex items-center gap-2 cursor-pointer select-none">
+        <label className="flex items-center gap-2.5 min-h-[44px] py-1 cursor-pointer select-none">
           <input
             type="checkbox"
             checked={discountEnabled}
@@ -237,11 +237,11 @@ export default function CartDrawer({
         {discountEnabled && (
           <div className="p-3 bg-brand-50/60 rounded-xl border border-brand-100 space-y-2.5">
             {/* Selector de 3 modos (RF-V5) */}
-            <div className="grid grid-cols-3 gap-1 bg-white p-1 rounded-lg border border-gray-200 text-xs font-semibold">
+            <div className="grid grid-cols-3 gap-1.5 bg-white p-1 rounded-xl border border-gray-200 text-xs font-semibold">
               <button
                 type="button"
                 onClick={() => handleSelectMode('finalPrice')}
-                className={`py-1.5 rounded text-center transition-colors ${
+                className={`min-h-[44px] py-2 px-1.5 rounded-lg flex items-center justify-center text-center transition-colors ${
                   discountMode === 'finalPrice'
                     ? 'bg-brand-600 text-white shadow-sm'
                     : 'text-gray-600 hover:bg-gray-100'
@@ -252,7 +252,7 @@ export default function CartDrawer({
               <button
                 type="button"
                 onClick={() => handleSelectMode('euros')}
-                className={`py-1.5 rounded text-center transition-colors ${
+                className={`min-h-[44px] py-2 px-1.5 rounded-lg flex items-center justify-center text-center transition-colors ${
                   discountMode === 'euros'
                     ? 'bg-brand-600 text-white shadow-sm'
                     : 'text-gray-600 hover:bg-gray-100'
@@ -263,7 +263,7 @@ export default function CartDrawer({
               <button
                 type="button"
                 onClick={() => handleSelectMode('percent')}
-                className={`py-1.5 rounded text-center transition-colors ${
+                className={`min-h-[44px] py-2 px-1.5 rounded-lg flex items-center justify-center text-center transition-colors ${
                   discountMode === 'percent'
                     ? 'bg-brand-600 text-white shadow-sm'
                     : 'text-gray-600 hover:bg-gray-100'
@@ -336,7 +336,7 @@ export default function CartDrawer({
         </button>
 
         {showClearConfirm ? (
-          <div className="flex items-center gap-2 p-2 bg-red-50 border border-red-200 rounded-xl">
+          <div className="flex items-center gap-2 p-2.5 bg-red-50 border border-red-200 rounded-xl">
             <span className="text-xs text-red-700 flex-1 font-medium">
               {UI.sale.clearCartConfirm}
             </span>
@@ -347,24 +347,24 @@ export default function CartDrawer({
                 setShowClearConfirm(false)
                 onClose?.()
               }}
-              className="px-3 py-1.5 bg-red-600 text-white rounded-lg text-xs font-bold active:bg-red-700 min-h-8"
+              className="px-3.5 py-2 bg-red-600 text-white rounded-xl text-xs font-bold active:bg-red-700 min-h-[44px] min-w-[48px]"
             >
               {UI.common.yes}
             </button>
             <button
               type="button"
               onClick={() => setShowClearConfirm(false)}
-              className="px-3 py-1.5 bg-gray-200 text-gray-700 rounded-lg text-xs font-semibold active:bg-gray-300 min-h-8"
+              className="px-3.5 py-2 bg-gray-200 text-gray-700 rounded-xl text-xs font-semibold active:bg-gray-300 min-h-[44px] min-w-[48px]"
             >
               {UI.common.no}
             </button>
           </div>
         ) : (
-          <div className="flex items-center justify-between pt-1">
+          <div className="flex items-center justify-between pt-1 gap-2">
             <button
               type="button"
               onClick={() => setShowClearConfirm(true)}
-              className="text-xs text-red-600 hover:text-red-700 font-semibold p-2 min-h-[44px]"
+              className="text-xs text-red-600 hover:text-red-700 font-semibold px-3 py-2.5 min-h-[48px] min-w-[48px] inline-flex items-center rounded-xl hover:bg-red-50 transition-colors"
             >
               {UI.sale.clearCart}
             </button>
@@ -372,7 +372,7 @@ export default function CartDrawer({
               <button
                 type="button"
                 onClick={onClose}
-                className="text-xs text-gray-500 hover:text-gray-700 font-medium p-2 min-h-[44px]"
+                className="text-xs text-gray-500 hover:text-gray-700 font-medium px-3 py-2.5 min-h-[48px] min-w-[48px] inline-flex items-center rounded-xl hover:bg-gray-100 transition-colors"
               >
                 {UI.common.close}
               </button>

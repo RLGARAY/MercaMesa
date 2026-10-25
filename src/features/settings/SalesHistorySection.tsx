@@ -86,7 +86,7 @@ export default function SalesHistorySection() {
             <h2 className="text-lg font-bold text-gray-900">{UI.settings.salesHistory}</h2>
             <p className="text-xs text-gray-500">{UI.settings.salesHistorySubtitle}</p>
           </div>
-          <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-gray-600 shrink-0">
+          <label className="flex items-center gap-2 min-h-[44px] py-1 cursor-pointer text-xs font-semibold text-gray-600 shrink-0">
             <input
               type="checkbox"
               checked={showUndoSales}
@@ -100,11 +100,11 @@ export default function SalesHistorySection() {
         {/* Filtros: Estado y Fecha */}
         <div className="flex flex-col sm:flex-row gap-2">
           {/* Selector de estado */}
-          <div className="flex bg-gray-100 p-1 rounded-xl text-xs font-semibold flex-1">
+          <div className="flex gap-1 bg-gray-100 p-1 rounded-xl text-xs font-semibold flex-1">
             <button
               type="button"
               onClick={() => setStatusFilter('all')}
-              className={`flex-1 py-1.5 rounded-lg text-center transition-colors ${
+              className={`flex-1 min-h-[44px] py-2 rounded-lg text-center transition-colors ${
                 statusFilter === 'all'
                   ? 'bg-white text-gray-900 shadow-sm font-bold'
                   : 'text-gray-600'
@@ -115,7 +115,7 @@ export default function SalesHistorySection() {
             <button
               type="button"
               onClick={() => setStatusFilter('active')}
-              className={`flex-1 py-1.5 rounded-lg text-center transition-colors ${
+              className={`flex-1 min-h-[44px] py-2 rounded-lg text-center transition-colors ${
                 statusFilter === 'active'
                   ? 'bg-white text-green-700 shadow-sm font-bold'
                   : 'text-gray-600'
@@ -126,7 +126,7 @@ export default function SalesHistorySection() {
             <button
               type="button"
               onClick={() => setStatusFilter('voided')}
-              className={`flex-1 py-1.5 rounded-lg text-center transition-colors ${
+              className={`flex-1 min-h-[44px] py-2 rounded-lg text-center transition-colors ${
                 statusFilter === 'voided'
                   ? 'bg-white text-red-700 shadow-sm font-bold'
                   : 'text-gray-600'
@@ -137,19 +137,19 @@ export default function SalesHistorySection() {
           </div>
 
           {/* Filtro de fecha */}
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-2">
             <input
               type="date"
               value={dateFilter}
               onChange={(e) => setDateFilter(e.target.value)}
               aria-label={UI.settings.filterByDateAria}
-              className="px-2.5 py-1.5 text-xs bg-white border border-gray-300 rounded-lg min-h-10"
+              className="px-3 py-2 text-xs bg-white border border-gray-300 rounded-xl min-h-[44px]"
             />
             {dateFilter && (
               <button
                 type="button"
                 onClick={() => setDateFilter('')}
-                className="text-xs text-brand-600 hover:text-brand-700 font-semibold px-2 py-1"
+                className="text-xs text-brand-600 hover:text-brand-700 font-semibold px-3 py-2 min-h-[44px] min-w-[44px] rounded-xl hover:bg-brand-50 transition-colors"
               >
                 {UI.settings.clearFilter}
               </button>

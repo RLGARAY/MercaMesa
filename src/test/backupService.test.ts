@@ -627,10 +627,13 @@ describe('backupService (RF-C6, RF-C7, RF-C11)', () => {
     })
 
     it('elimina las copias más antiguas al superar 3 y permite continuar con skipPreBackup si localBackups falla por cuota (E4)', async () => {
-      // Crear 4 copias seguidas
+      // Crear 4 copias seguidas con timestamps diferenciados
       await saveLocalBackup('before-import', testDb)
+      await new Promise((r) => setTimeout(r, 5))
       await saveLocalBackup('before-restore', testDb)
+      await new Promise((r) => setTimeout(r, 5))
       await saveLocalBackup('before-migration', testDb)
+      await new Promise((r) => setTimeout(r, 5))
       const fourth = await saveLocalBackup('before-reset', testDb)
 
       const backups = await getLocalBackups(testDb)

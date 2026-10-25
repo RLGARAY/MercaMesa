@@ -237,7 +237,7 @@ export default function ItemForm({
             <button
               type="button"
               onClick={() => setImageThumb(null)}
-              className="text-xs text-red-600 hover:text-red-700 min-h-8 text-left font-medium"
+              className="text-xs text-red-600 hover:text-red-700 min-h-[44px] px-2.5 py-2 inline-flex items-center rounded-lg hover:bg-red-50 text-left font-medium transition-colors"
             >
               {UI.items.removePhoto}
             </button>
@@ -272,7 +272,7 @@ export default function ItemForm({
           <button
             type="button"
             onClick={() => setShowNewCatInput(!showNewCatInput)}
-            className="text-xs font-semibold text-brand-600 hover:text-brand-700 py-1"
+            className="text-xs font-semibold text-brand-600 hover:text-brand-700 px-2.5 py-2 min-h-[44px] inline-flex items-center rounded-lg hover:bg-brand-50 transition-colors"
           >
             {showNewCatInput ? UI.common.cancel : UI.items.newCategory}
           </button>
@@ -286,12 +286,12 @@ export default function ItemForm({
                 value={newCatName}
                 onChange={(e) => setNewCatName(e.target.value)}
                 placeholder={UI.items.createCategoryPrompt}
-                className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm"
+                className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm min-h-[44px]"
               />
               <button
                 type="button"
                 onClick={handleCreateCategory}
-                className="px-3 py-2 bg-brand-600 text-white text-sm font-medium rounded-md active:bg-brand-700"
+                className="px-3.5 py-2 bg-brand-600 text-white text-sm font-medium rounded-md active:bg-brand-700 min-h-[44px] min-w-[44px]"
               >
                 {UI.common.add}
               </button>

@@ -568,7 +568,7 @@ export default function DataBackupSection() {
                   type="button"
                   onClick={() => setBackupToRestore(b)}
                   disabled={loading}
-                  className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-medium rounded-lg transition-colors min-h-[36px] shrink-0"
+                  className="px-3.5 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-medium rounded-xl transition-colors min-h-[44px] min-w-[44px] shrink-0"
                 >
                   {UI.settings.restoreBackup}
                 </button>
@@ -739,7 +739,7 @@ export default function DataBackupSection() {
                 type="button"
                 onClick={() => setConflictData(null)}
                 disabled={loading}
-                className="w-full py-2.5 px-4 text-gray-500 font-medium text-xs hover:text-gray-700 min-h-[40px]"
+                className="w-full py-2.5 px-4 text-gray-500 font-medium text-xs hover:text-gray-700 min-h-[48px]"
               >
                 {UI.common.cancel}
               </button>

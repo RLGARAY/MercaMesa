@@ -134,7 +134,7 @@ export default function InventorySection() {
           <h2 className="text-lg font-bold text-gray-900">{UI.settings.inventory}</h2>
           <p className="text-xs text-gray-500">{UI.settings.inventorySubtitle}</p>
         </div>
-        <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-gray-600">
+        <label className="flex items-center gap-2 min-h-[44px] py-1 cursor-pointer text-xs font-semibold text-gray-600">
           <input
             type="checkbox"
             checked={showArchived}
@@ -245,7 +245,7 @@ export default function InventorySection() {
                     type="button"
                     onClick={() => handleOpenHistory(item)}
                     aria-label={UI.settings.viewHistoryAria(item.name)}
-                    className="p-2 text-gray-500 hover:text-brand-600 active:bg-gray-100 rounded-lg text-xs font-semibold min-h-12 flex items-center gap-1"
+                    className="px-3 py-2 text-gray-500 hover:text-brand-600 active:bg-gray-100 rounded-xl text-xs font-semibold min-h-12 min-w-[48px] flex items-center justify-center gap-1"
                   >
                     <span>📜</span>
                     <span className="hidden sm:inline">{UI.settings.historyBtn}</span>
@@ -255,7 +255,7 @@ export default function InventorySection() {
                     type="button"
                     onClick={() => handleOpenAdjust(item)}
                     aria-label={UI.settings.adjustStockAria(item.name)}
-                    className="px-3.5 py-2 bg-brand-50 hover:bg-brand-100 active:bg-brand-200 text-brand-700 font-bold text-xs rounded-xl min-h-12 flex items-center transition-colors"
+                    className="px-3.5 py-2 bg-brand-50 hover:bg-brand-100 active:bg-brand-200 text-brand-700 font-bold text-xs rounded-xl min-h-12 min-w-[48px] flex items-center justify-center transition-colors"
                   >
                     {UI.settings.adjustStock}
                   </button>
@@ -290,11 +290,11 @@ export default function InventorySection() {
               <label className="block text-xs font-bold text-gray-700 mb-1.5">
                 {UI.settings.adjustMethodLabel}
               </label>
-              <div className="grid grid-cols-2 gap-1 bg-gray-100 p-1 rounded-xl text-xs font-semibold">
+              <div className="grid grid-cols-2 gap-1.5 bg-gray-100 p-1 rounded-xl text-xs font-semibold">
                 <button
                   type="button"
                   onClick={() => setAdjustMode('absolute')}
-                  className={`py-2 rounded-lg text-center transition-colors ${
+                  className={`min-h-[44px] py-2 rounded-lg text-center transition-colors ${
                     adjustMode === 'absolute'
                       ? 'bg-white text-brand-700 shadow-sm font-bold'
                       : 'text-gray-600 hover:text-gray-900'
@@ -305,7 +305,7 @@ export default function InventorySection() {
                 <button
                   type="button"
                   onClick={() => setAdjustMode('delta')}
-                  className={`py-2 rounded-lg text-center transition-colors ${
+                  className={`min-h-[44px] py-2 rounded-lg text-center transition-colors ${
                     adjustMode === 'delta'
                       ? 'bg-white text-brand-700 shadow-sm font-bold'
                       : 'text-gray-600 hover:text-gray-900'

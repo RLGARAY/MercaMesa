@@ -188,7 +188,7 @@ export default function SalePage() {
             <button
               type="button"
               onClick={handleUndo}
-              className="ml-3 px-3 py-1.5 bg-brand-500 hover:bg-brand-600 active:bg-brand-700 text-white rounded-lg text-xs font-bold transition-colors min-h-8"
+              className="ml-3 px-3.5 py-2 bg-brand-500 hover:bg-brand-600 active:bg-brand-700 text-white rounded-xl text-xs font-bold transition-colors min-h-[44px] min-w-[44px] shrink-0"
             >
               {UI.sale.undo}
             </button>
@@ -239,7 +239,7 @@ export default function SalePage() {
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder={UI.sale.searchPlaceholder}
                   aria-label={UI.sale.searchAria}
-                  className="w-full min-h-[44px] pl-9 pr-11 py-2 bg-gray-100 focus:bg-white border border-gray-200 focus:border-brand-500 rounded-xl text-base text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-brand-500 transition-colors [&::-webkit-search-cancel-button]:hidden"
+                  className="w-full min-h-[46px] pl-9 pr-12 py-2 bg-gray-100 focus:bg-white border border-gray-200 focus:border-brand-500 rounded-xl text-base text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-brand-500 transition-colors [&::-webkit-search-cancel-button]:hidden"
                 />
                 {searchQuery.length > 0 && (
                   <button
@@ -249,7 +249,7 @@ export default function SalePage() {
                       searchInputRef.current?.focus()
                     }}
                     aria-label={UI.sale.clearSearchAria}
-                    className="absolute inset-y-0 right-0 min-w-[44px] min-h-[44px] px-3 flex items-center justify-center text-gray-400 hover:text-gray-700 active:text-gray-900 rounded-r-xl transition-colors"
+                    className="absolute inset-y-0 right-0 min-w-[46px] min-h-[46px] p-2.5 flex items-center justify-center text-gray-500 hover:text-gray-800 active:bg-gray-200/70 rounded-r-xl transition-colors"
                   >
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
@@ -270,7 +270,7 @@ export default function SalePage() {
                 type="button"
                 onClick={handleOpenCreate}
                 aria-label={UI.items.newItem}
-                className="inline-flex items-center justify-center gap-1 px-3 py-2 bg-brand-600 hover:bg-brand-700 active:bg-brand-800 text-white text-xs sm:text-sm font-semibold rounded-xl shadow-sm transition-colors min-h-[44px] min-w-[44px] shrink-0"
+                className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 bg-brand-600 hover:bg-brand-700 active:bg-brand-800 text-white text-xs sm:text-sm font-semibold rounded-xl shadow-sm transition-colors min-h-[46px] min-w-[46px] shrink-0"
               >
                 <span className="text-lg leading-none" aria-hidden="true">+</span>
                 <span className="hidden sm:inline">{UI.items.newItem}</span>
@@ -278,7 +278,7 @@ export default function SalePage() {
             </div>
 
             {/* Fila 2: Orden + Interruptor sin stock + Chips de filtro por categoría (RF-V2) */}
-            <div className="flex items-center gap-2 overflow-x-auto pb-0.5 scrollbar-none">
+            <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
               <div className="shrink-0">
                 <label htmlFor="sale-sort-select" className="sr-only">
                   {UI.sale.sortByAria}
@@ -288,7 +288,7 @@ export default function SalePage() {
                   aria-label={UI.sale.sortByAria}
                   value={currentSort}
                   onChange={(e) => handleSortChange(e.target.value)}
-                  className="min-h-[44px] px-2.5 py-1.5 bg-gray-100 hover:bg-gray-200/80 border border-gray-200 rounded-xl text-xs font-semibold text-gray-800 focus:outline-none focus:ring-2 focus:ring-brand-500 cursor-pointer transition-colors"
+                  className="min-h-[44px] px-3 py-2 bg-gray-100 hover:bg-gray-200/80 border border-gray-200 rounded-xl text-xs font-semibold text-gray-800 focus:outline-none focus:ring-2 focus:ring-brand-500 cursor-pointer transition-colors"
                 >
                   <option value="name-asc">{UI.sale.sortOptions.nameAsc}</option>
                   <option value="name-desc">{UI.sale.sortOptions.nameDesc}</option>
@@ -303,7 +303,7 @@ export default function SalePage() {
                 aria-pressed={hideOutOfStock}
                 aria-label={UI.sale.hideOutOfStockAria}
                 onClick={() => handleToggleHideOutOfStock()}
-                className={`min-h-[44px] px-3 py-1.5 rounded-xl border text-xs font-semibold whitespace-nowrap inline-flex items-center gap-1.5 shrink-0 transition-colors ${
+                className={`min-h-[44px] px-3.5 py-2 rounded-xl border text-xs font-semibold whitespace-nowrap inline-flex items-center gap-1.5 shrink-0 transition-colors ${
                   hideOutOfStock
                     ? 'bg-gray-900 text-white border-gray-900 shadow-sm'
                     : 'bg-gray-100 text-gray-700 border-gray-200 hover:bg-gray-200'
@@ -360,7 +360,7 @@ export default function SalePage() {
                   role="tab"
                   aria-selected={selectedCategoryId === 'ALL'}
                   onClick={() => setSelectedCategoryId('ALL')}
-                  className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-colors min-h-[36px] ${
+                  className={`px-3.5 py-2 rounded-full text-xs font-semibold whitespace-nowrap inline-flex items-center justify-center transition-colors min-h-[44px] min-w-[44px] ${
                     selectedCategoryId === 'ALL'
                       ? 'bg-brand-600 text-white shadow-sm'
                       : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -375,7 +375,7 @@ export default function SalePage() {
                     role="tab"
                     aria-selected={selectedCategoryId === cat.id}
                     onClick={() => setSelectedCategoryId(cat.id)}
-                    className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-colors min-h-[36px] ${
+                    className={`px-3.5 py-2 rounded-full text-xs font-semibold whitespace-nowrap inline-flex items-center justify-center transition-colors min-h-[44px] min-w-[44px] ${
                       selectedCategoryId === cat.id
                         ? 'bg-brand-600 text-white shadow-sm'
                         : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -399,7 +399,7 @@ export default function SalePage() {
                 <button
                   type="button"
                   onClick={() => handleToggleHideOutOfStock(false)}
-                  className="text-brand-700 hover:text-brand-800 font-semibold px-2 py-1 min-h-[36px] rounded-lg"
+                  className="text-brand-700 hover:text-brand-800 active:bg-gray-200/70 font-semibold px-3 py-2 min-h-[44px] min-w-[44px] inline-flex items-center rounded-lg transition-colors"
                 >
                   {UI.sale.showOutOfStockBtn}
                 </button>
@@ -515,20 +515,20 @@ export default function SalePage() {
                       </div>
 
                       <div className="min-w-0 flex-1 pr-2">
-                        <div className="flex items-center gap-1.5">
+                        <div className="flex items-center gap-1">
                           <h3 className="font-semibold text-gray-900 truncate text-sm sm:text-base">
                             {item.name}
                           </h3>
-                          {/* Botón rápido editar */}
+                          {/* Botón rápido editar (zona táctil >= 44x44px con padding, RNF-1) */}
                           <button
                             type="button"
                             onClick={() => handleOpenEdit(item)}
                             aria-label={UI.items.editItemAria(item.name)}
-                            className="text-gray-400 hover:text-gray-600 p-2 min-w-[36px] min-h-[36px] flex items-center justify-center rounded-lg hover:bg-gray-100 transition-colors"
+                            className="text-gray-400 hover:text-gray-600 active:bg-gray-200/70 p-2.5 -my-1.5 min-w-[44px] min-h-[44px] shrink-0 flex items-center justify-center rounded-xl hover:bg-gray-100 transition-colors"
                           >
                             <svg
                               xmlns="http://www.w3.org/2000/svg"
-                              className="w-3.5 h-3.5"
+                              className="w-4 h-4"
                               fill="none"
                               viewBox="0 0 24 24"
                               stroke="currentColor"
@@ -585,14 +585,14 @@ export default function SalePage() {
                       </div>
                     </div>
 
-                    {/* Controles táctiles − / + grandes (RF-V1, RF-V3, RNF-1) */}
-                    <div className="flex items-center gap-1 shrink-0">
+                    {/* Controles táctiles − / + grandes con separación para evitar toques equivocados (RF-V1, RF-V3, RNF-1) */}
+                    <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
                       <button
                         type="button"
                         onClick={() => removeFromCart(item.id)}
                         disabled={qty === 0}
                         aria-label={`${UI.common.remove} 1 ${item.name}`}
-                        className={`w-12 h-12 flex items-center justify-center rounded-xl font-bold text-xl transition-colors ${
+                        className={`w-12 h-12 min-w-[48px] min-h-[48px] flex items-center justify-center rounded-xl font-bold text-xl transition-colors ${
                           qty > 0
                             ? 'bg-gray-100 text-gray-800 hover:bg-gray-200 active:bg-gray-300'
                             : 'bg-gray-50 text-gray-300 cursor-not-allowed'
@@ -601,7 +601,7 @@ export default function SalePage() {
                         −
                       </button>
 
-                      <div className="w-8 flex items-center justify-center font-bold text-base text-gray-900">
+                      <div className="min-w-[2rem] px-1 flex items-center justify-center font-bold text-base text-gray-900">
                         {qty > 0 ? (
                           <span className="text-brand-600 font-extrabold">{qty}</span>
                         ) : (
@@ -613,7 +613,7 @@ export default function SalePage() {
                         type="button"
                         onClick={() => addToCart(item.id)}
                         aria-label={`${UI.common.add} 1 ${item.name}`}
-                        className="w-12 h-12 flex items-center justify-center bg-brand-600 hover:bg-brand-700 active:bg-brand-800 text-white rounded-xl font-bold text-xl shadow-sm transition-colors"
+                        className="w-12 h-12 min-w-[48px] min-h-[48px] flex items-center justify-center bg-brand-600 hover:bg-brand-700 active:bg-brand-800 text-white rounded-xl font-bold text-xl shadow-sm transition-colors"
                       >
                         +
                       </button>

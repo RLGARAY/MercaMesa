@@ -120,7 +120,7 @@ export default function CatalogSection() {
           <button
             type="button"
             onClick={() => setCategoryError(null)}
-            className="text-red-500 font-bold ml-2 p-1"
+            className="text-red-500 hover:text-red-700 active:bg-red-100 font-bold ml-2 min-w-[44px] min-h-[44px] p-2.5 flex items-center justify-center rounded-xl shrink-0 transition-colors"
             aria-label={UI.common.closeNoticeAria}
           >
             ✕
@@ -166,7 +166,7 @@ export default function CatalogSection() {
                   </span>
                 </div>
 
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-1.5">
                   <button
                     type="button"
                     disabled={idx === 0}
@@ -220,7 +220,7 @@ export default function CatalogSection() {
             <button
               type="button"
               onClick={() => setShowArchivedCategories(!showArchivedCategories)}
-              className="text-xs font-semibold text-gray-500 hover:text-gray-700 py-1"
+              className="text-xs font-semibold text-gray-500 hover:text-gray-700 px-2.5 py-2 min-h-[44px] inline-flex items-center rounded-lg hover:bg-gray-100 transition-colors"
             >
               {showArchivedCategories
                 ? UI.settings.hideArchivedCategories
@@ -235,7 +235,7 @@ export default function CatalogSection() {
                     <button
                       type="button"
                       onClick={() => handleRestoreCategory(c.id)}
-                      className="text-brand-600 hover:text-brand-700 font-semibold px-2 py-1 min-h-8"
+                      className="text-brand-600 hover:text-brand-700 font-semibold px-3 py-2 min-h-[44px] min-w-[44px] inline-flex items-center rounded-lg hover:bg-brand-50 transition-colors"
                     >
                       {UI.items.restore}
                     </button>

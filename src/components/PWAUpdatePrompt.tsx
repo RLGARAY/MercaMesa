@@ -90,7 +90,7 @@ export default function PWAUpdatePrompt() {
             type="button"
             onClick={() => setOfflineReady(false)}
             aria-label={UI.pwa.closeOfflineReadyAria}
-            className="text-gray-400 hover:text-white text-sm font-bold px-2 py-1"
+            className="text-gray-300 hover:text-white active:bg-white/10 text-sm font-bold min-w-[44px] min-h-[44px] p-2.5 flex items-center justify-center rounded-xl shrink-0 transition-colors"
           >
             ✕
           </button>
@@ -113,14 +113,14 @@ export default function PWAUpdatePrompt() {
             <button
               type="button"
               onClick={() => setNeedRefresh(false)}
-              className="px-2.5 py-1.5 text-xs text-brand-100 hover:text-white font-medium rounded-lg hover:bg-brand-700/50 transition-colors min-h-[40px]"
+              className="px-3 py-2 text-xs text-brand-100 hover:text-white font-medium rounded-xl hover:bg-brand-700/50 transition-colors min-h-[44px] min-w-[44px]"
             >
               {UI.pwa.later}
             </button>
             <button
               type="button"
               onClick={handleUpdateClick}
-              className="px-3 py-1.5 bg-white text-brand-700 hover:bg-brand-50 text-xs font-bold rounded-lg shadow-sm transition-colors min-h-[40px] active:scale-95"
+              className="px-3.5 py-2 bg-white text-brand-700 hover:bg-brand-50 text-xs font-bold rounded-xl shadow-sm transition-colors min-h-[44px] min-w-[44px] active:scale-95"
             >
               {UI.pwa.updateBtn}
             </button>

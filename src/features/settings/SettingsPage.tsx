@@ -24,7 +24,7 @@ export default function SettingsPage() {
       <header className="sticky top-0 z-10 bg-white border-b border-gray-200 px-4 pt-3 pb-2 shadow-sm">
         <h1 className="text-xl font-bold text-gray-900 mb-2 text-left">{UI.settings.title}</h1>
 
-        <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-none" role="tablist" aria-label={UI.settings.sectionsAria}>
+        <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none" role="tablist" aria-label={UI.settings.sectionsAria}>
           {tabs.map(({ id, label, icon }) => (
             <button
               key={id}
@@ -32,7 +32,7 @@ export default function SettingsPage() {
               role="tab"
               aria-selected={activeTab === id}
               onClick={() => setActiveTab(id)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-colors min-h-10 ${
+              className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-colors min-h-[44px] min-w-[44px] ${
                 activeTab === id
                   ? 'bg-brand-600 text-white shadow-sm'
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
