@@ -219,6 +219,12 @@ export async function applyDriveRestore(
         ...(prevMeta?.lowStockThreshold !== undefined
           ? { lowStockThreshold: prevMeta.lowStockThreshold }
           : {}),
+        ...(prevMeta?.saleSort !== undefined
+          ? { saleSort: prevMeta.saleSort }
+          : {}),
+        ...(prevMeta?.hideOutOfStock !== undefined
+          ? { hideOutOfStock: prevMeta.hideOutOfStock }
+          : {}),
       })
     },
   )

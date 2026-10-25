@@ -17,6 +17,7 @@ import type {
   Meta,
   LocalBackup,
 } from '@/types'
+import { parseSaleSort, type SaleSortOrder } from '@/domain/saleFilter'
 
 /** Versión actual del esquema. Subir al añadir/cambiar tablas o índices. */
 export const SCHEMA_VERSION = 2
@@ -202,6 +203,52 @@ export async function setLowStockThreshold(
       deviceId: crypto.randomUUID(),
       lastSyncedRevision: 0,
       lowStockThreshold: threshold,
+    })
+  }
+}
+
+/**
+ * Guarda la preferencia de ordenación de la lista de venta en `meta` ('main').
+ * No forma parte del archivo de copia de seguridad ni de Drive.
+ */
+export async function setSaleSortPreference(
+  sort: SaleSortOrder,
+  dbInstance: MercaMesaDB = db,
+): Promise<void> {
+  const validSort = parseSaleSort(sort)
+  const existing = await dbInstance.meta.get(META_KEY)
+  if (existing) {
+    await dbInstance.meta.update(META_KEY, { saleSort: validSort })
+  } else {
+    await dbInstance.meta.put({
+      id: META_KEY,
+      schemaVersion: SCHEMA_VERSION,
+      deviceId: crypto.randomUUID(),
+      lastSyncedRevision: 0,
+      saleSort: validSort,
+    })
+  }
+}
+
+/**
+ * Guarda la preferencia de mostrar/ocultar artículos sin stock en `meta` ('main').
+ * No forma parte del archivo de copia de seguridad ni de Drive.
+ */
+export async function setHideOutOfStockPreference(
+  hideOutOfStock: boolean,
+  dbInstance: MercaMesaDB = db,
+): Promise<void> {
+  const normalized = Boolean(hideOutOfStock)
+  const existing = await dbInstance.meta.get(META_KEY)
+  if (existing) {
+    await dbInstance.meta.update(META_KEY, { hideOutOfStock: normalized })
+  } else {
+    await dbInstance.meta.put({
+      id: META_KEY,
+      schemaVersion: SCHEMA_VERSION,
+      deviceId: crypto.randomUUID(),
+      lastSyncedRevision: 0,
+      hideOutOfStock: normalized,
     })
   }
 }

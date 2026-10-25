@@ -72,6 +72,8 @@ export interface Meta {
   lastSyncedAt?: string     // ISO 8601 UTC
   driveFileId?: string      // ID del archivo en Google Drive
   lowStockThreshold?: number // Umbral local de aviso de poco stock (por defecto 2, RF-E7)
+  saleSort?: 'name-asc' | 'name-desc' | 'stock-asc' | 'stock-desc' // Preferencia local de orden en venta
+  hideOutOfStock?: boolean  // Preferencia local para ocultar artículos sin stock en venta
 }
 
 /** Copia de seguridad local guardada antes de importar/restaurar (SPEC sección 7) */
