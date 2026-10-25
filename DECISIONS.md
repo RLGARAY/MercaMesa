@@ -308,6 +308,17 @@ Se refuerzan los anillos de foco visibles (`focus-visible:ring-2 focus-visible:r
 
 ---
 
+### 2026-10-25 — Buscador, selector de orden, filtro de sin stock y ampliación de objetivos táctiles (RF-V2, RNF-1)
+
+**Decisión:**
+1. **Lógica pura en dominio (`src/domain/saleFilter.ts`):** Se centralizan `normalizeForSearch` (normalización NFD sin diacríticos, minúsculas y recorte de espacios) y `filterAndSortItems(items, { categoryId, query, hideOutOfStock, sort, cartItemIds })` siguiendo estrictamente el orden de combinación de 5 pasos. La ordenación por defecto pasa a ser `Nombre A → Z` (`'name-asc'`) con `localeCompare('es', { sensitivity: 'base', numeric: true })` y desempate por nombre A → Z cuando se ordena por stock.
+2. **Preferencias locales en `db.meta` (`'main'`):** `saleSort` y `hideOutOfStock` se guardan en el registro `meta` del dispositivo (igual que `lowStockThreshold`), sin subir `SCHEMA_VERSION` al no ser campos indexados. Se excluyen del archivo JSON de copia de seguridad y de Google Drive, y se preservan al importar o restaurar copias. Si no existen o contienen un valor inválido, se aplica `parseSaleSort` → `'name-asc'` y `parseHideOutOfStock` → `false`.
+3. **Excepción de carrito en "ocultar sin stock":** Los artículos que ya están en el carrito (`cartItemIds`) nunca se ocultan aunque tengan `stock ≤ 0`, permitiendo restar unidades sin cambiar el filtro. Cuando hay artículos ocultos por este filtro, se muestra una nota discreta con el recuento (`countHiddenOutOfStockItems`).
+4. **Barra de carrito acoplada al flujo flex en móvil:** En pantallas móviles (`< lg`), la barra de resumen del carrito pasa de `fixed bottom-14` a ser un pie `shrink-0` dentro de la columna flex principal debajo de la lista con scroll (`flex-1 min-h-0 overflow-y-auto`). De este modo, al abrir el teclado virtual en el móvil para escribir en el buscador, la barra de carrito nunca se superpone a los resultados ni al campo de búsqueda.
+5. **Objetivos táctiles ≥ 44–48 px y espaciado (RNF-1):** Se amplían mediante `min-h-[44px]`/`min-h-[48px]`, `min-w-[44px]`/`min-w-[48px]` y `padding` los botones pequeños de toda la interfaz (controles `− / +` de catálogo y carrito, chips de categoría y de secciones, controles de búsqueda/orden/sin stock, botones de cerrar de modales y toasts, selectores de periodo y acciones de tablas), incrementando la separación entre botones contiguos (`gap-2.5` / `gap-3`) sin alterar la jerarquía visual.
+
+---
+
 ## Ideas fuera de alcance (SPEC sección 13)
 
 - **Precio de coste y beneficio:** interesante para saber el margen por artículo. Requiere modelo de datos adicional.

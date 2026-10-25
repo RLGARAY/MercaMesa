@@ -114,6 +114,8 @@ interface Meta {              // una sola fila (clave primaria fija 'main')
   lastSyncedAt?: string;
   driveFileId?: string;
   lowStockThreshold?: number; // preferencia local del dispositivo para aviso de poco stock (por defecto 2)
+  saleSort?: 'name-asc' | 'name-desc' | 'stock-asc' | 'stock-desc'; // preferencia local de orden en pantalla de venta (por defecto 'name-asc')
+  hideOutOfStock?: boolean;   // preferencia local para ocultar artículos sin stock en pantalla de venta (por defecto false)
 }
 ```
 
@@ -153,7 +155,12 @@ La app tiene **navegación inferior con 3 pestañas**: **Venta**, **Estadística
 ### 6.1 Pestaña Venta (pantalla principal)
 
 - **RF-V1** Lista de artículos activos en **filas**: imagen (miniatura), nombre, precio, stock actual, y botones **− / +** grandes. El número de unidades en el carrito se ve entre los botones.
-- **RF-V2** **Chips de categoría** en la parte superior para filtrar (con opción "Todas"). Opcional: cuadro de búsqueda por nombre.
+- **RF-V2** **Barra de herramientas de filtrado y orden** en la parte superior:
+  - **Buscador por nombre** (requisito): coincidencia parcial en cualquier parte del nombre, sin distinguir mayúsculas ni acentos (`normalize('NFD')` eliminando diacríticos) e ignorando espacios al principio y al final, con botón para borrar el texto y estado vacío claro cuando no hay resultados. El texto de búsqueda no se guarda entre sesiones.
+  - **Chips de categoría** con scroll horizontal (con opción "Todas").
+  - **Selector compacto de orden**: *Nombre A → Z* (`'name-asc'`, valor por defecto), *Nombre Z → A* (`'name-desc'`), *Stock: de menos a más* (`'stock-asc'`) y *Stock: de más a menos* (`'stock-desc'`). Comparación en español sin distinguir mayúsculas ni acentos y con orden numérico natural (`localeCompare('es', { sensitivity: 'base', numeric: true })`), desempatando por *Nombre A → Z* cuando coincide el stock. Se recuerda entre sesiones como preferencia local del dispositivo (`meta.saleSort`, excluida de copias de seguridad y Drive).
+  - **Interruptor de artículos sin stock**: muestra todos por defecto (`false`) y, al activarse (`true`), oculta los artículos con `stock ≤ 0` **salvo los que ya estén en el carrito** (para que el usuario pueda seguir restando unidades), mostrando una indicación discreta del nº de artículos sin stock ocultos. Expone su estado mediante icono, texto ("Sin stock: visibles / ocultos"), `aria-pressed` y `aria-label`, y se recuerda como preferencia local del dispositivo (`meta.hideOutOfStock`).
+  - **Reglas de combinación**: la lista visible se calcula mediante una única función pura en `src/domain` (`filterAndSortItems`) aplicando en este orden: (1) excluir artículos archivados, (2) filtro por categoría, (3) buscador por nombre, (4) filtro de ocultar sin stock (con excepción de artículos en el carrito), y (5) orden elegido. Cambiar filtros u orden nunca modifica el carrito ni el stock.
 - **RF-V3** El botón **+** añade una unidad al **carrito**; **−** la quita (mínimo 0). **No** modifica el stock hasta cobrar.
 - **RF-V4** **Barra de carrito** fija abajo: nº de artículos y **subtotal**. Al tocarla se abre el **resumen del carrito**.
 - **RF-V5** Resumen del carrito: líneas (nombre, cantidad, importe), subtotal, check **"Oferta / descuento"**.
