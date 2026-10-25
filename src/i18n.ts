@@ -111,6 +111,12 @@ export const UI = {
       stockAsc: 'Stock: de menos a más',
       stockDesc: 'Stock: de más a menos',
     },
+    hideOutOfStockAria: 'Ocultar artículos sin stock de la lista de venta',
+    outOfStockVisible: 'Sin stock: visibles',
+    outOfStockHidden: 'Sin stock: ocultos',
+    hiddenOutOfStockNotice: (count: number) =>
+      count === 1 ? '1 artículo sin stock oculto' : `${count} artículos sin stock ocultos`,
+    showOutOfStockBtn: 'Mostrar sin stock',
   },
 
   // Artículos (Fase 1)

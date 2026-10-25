@@ -1,11 +1,22 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { db, META_KEY, setSaleSortPreference } from '@/db/db'
+import {
+  db,
+  META_KEY,
+  setSaleSortPreference,
+  setHideOutOfStockPreference,
+} from '@/db/db'
 import type { Item, Sale, ID } from '@/types'
 import { UI } from '@/i18n'
 import { formatCents } from '@/domain/money'
 import { classifyStockLevel, DEFAULT_LOW_STOCK_THRESHOLD } from '@/domain/stats'
-import { filterAndSortItems, parseSaleSort, type SaleSortOrder } from '@/domain/saleFilter'
+import {
+  filterAndSortItems,
+  countHiddenOutOfStockItems,
+  parseSaleSort,
+  parseHideOutOfStock,
+  type SaleSortOrder,
+} from '@/domain/saleFilter'
 import { voidSale } from '@/services/saleService'
 import Modal from '@/components/Modal'
 import ItemForm from '@/features/items/ItemForm'
@@ -16,6 +27,7 @@ export default function SalePage() {
   const [selectedCategoryId, setSelectedCategoryId] = useState<ID | 'ALL'>('ALL')
   const [searchQuery, setSearchQuery] = useState('')
   const [sortOverride, setSortOverride] = useState<SaleSortOrder | null>(null)
+  const [hideOutOfStockOverride, setHideOutOfStockOverride] = useState<boolean | null>(null)
   const [isItemModalOpen, setIsItemModalOpen] = useState(false)
   const [editingItem, setEditingItem] = useState<Item | null>(null)
   const [isCartModalOpen, setIsCartModalOpen] = useState(false)
@@ -43,11 +55,19 @@ export default function SalePage() {
   )
   const lowStockThreshold = meta?.lowStockThreshold ?? DEFAULT_LOW_STOCK_THRESHOLD
   const currentSort: SaleSortOrder = sortOverride ?? parseSaleSort(meta?.saleSort)
+  const hideOutOfStock: boolean =
+    hideOutOfStockOverride ?? parseHideOutOfStock(meta?.hideOutOfStock)
 
   const handleSortChange = (rawSort: string) => {
     const nextSort = parseSaleSort(rawSort)
     setSortOverride(nextSort)
     void setSaleSortPreference(nextSort)
+  }
+
+  const handleToggleHideOutOfStock = (nextValue?: boolean) => {
+    const next = nextValue !== undefined ? nextValue : !hideOutOfStock
+    setHideOutOfStockOverride(next)
+    void setHideOutOfStockPreference(next)
   }
 
   // Carrito persistente en localStorage purgado contra artículos activos (Decisión 2, RN-1, C2 #7)
@@ -60,15 +80,33 @@ export default function SalePage() {
     clearCart,
   } = useCart(items)
 
+  // Conjunto de IDs de artículos presentes en el carrito (nunca se ocultan aunque su stock sea <= 0)
+  const cartItemIds = useMemo(() => {
+    return new Set(cartLines.map((line) => line.item.id))
+  }, [cartLines])
+
   // Filtrado y ordenación puros en dominio (RF-V2, 200 artículos con useMemo)
   const filteredItems = useMemo(() => {
     if (!items) return []
     return filterAndSortItems(items, {
       categoryId: selectedCategoryId,
       query: searchQuery,
+      hideOutOfStock,
       sort: currentSort,
+      cartItemIds,
     })
-  }, [items, selectedCategoryId, searchQuery, currentSort])
+  }, [items, selectedCategoryId, searchQuery, hideOutOfStock, currentSort, cartItemIds])
+
+  // Número de artículos ocultados específicamente por el filtro de sin stock
+  const hiddenOutOfStockCount = useMemo(() => {
+    if (!items) return 0
+    return countHiddenOutOfStockItems(items, {
+      categoryId: selectedCategoryId,
+      query: searchQuery,
+      hideOutOfStock,
+      cartItemIds,
+    })
+  }, [items, selectedCategoryId, searchQuery, hideOutOfStock, cartItemIds])
 
   const trimmedQuery = searchQuery.trim()
 
@@ -239,7 +277,7 @@ export default function SalePage() {
               </button>
             </div>
 
-            {/* Fila 2: Orden + Chips de filtro por categoría (RF-V2) */}
+            {/* Fila 2: Orden + Interruptor sin stock + Chips de filtro por categoría (RF-V2) */}
             <div className="flex items-center gap-2 overflow-x-auto pb-0.5 scrollbar-none">
               <div className="shrink-0">
                 <label htmlFor="sale-sort-select" className="sr-only">
@@ -258,6 +296,61 @@ export default function SalePage() {
                   <option value="stock-desc">{UI.sale.sortOptions.stockDesc}</option>
                 </select>
               </div>
+
+              {/* Interruptor mostrar/ocultar artículos sin stock */}
+              <button
+                type="button"
+                aria-pressed={hideOutOfStock}
+                aria-label={UI.sale.hideOutOfStockAria}
+                onClick={() => handleToggleHideOutOfStock()}
+                className={`min-h-[44px] px-3 py-1.5 rounded-xl border text-xs font-semibold whitespace-nowrap inline-flex items-center gap-1.5 shrink-0 transition-colors ${
+                  hideOutOfStock
+                    ? 'bg-gray-900 text-white border-gray-900 shadow-sm'
+                    : 'bg-gray-100 text-gray-700 border-gray-200 hover:bg-gray-200'
+                }`}
+              >
+                {hideOutOfStock ? (
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="w-4 h-4 shrink-0"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                    aria-hidden="true"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"
+                    />
+                  </svg>
+                ) : (
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="w-4 h-4 shrink-0"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                    aria-hidden="true"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                    />
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                    />
+                  </svg>
+                )}
+                <span>
+                  {hideOutOfStock ? UI.sale.outOfStockHidden : UI.sale.outOfStockVisible}
+                </span>
+              </button>
 
               <div className="w-px h-5 bg-gray-200 shrink-0" aria-hidden="true" />
 
@@ -297,6 +390,22 @@ export default function SalePage() {
 
           {/* Lista de artículos en filas (RF-V1, RF-V3) */}
           <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-3 pb-6">
+            {hiddenOutOfStockCount > 0 && (filteredItems.length > 0 || trimmedQuery.length > 0) && (
+              <div
+                role="status"
+                className="flex items-center justify-between gap-2 px-3 py-1.5 bg-gray-100 border border-gray-200 rounded-xl text-xs text-gray-600"
+              >
+                <span>{UI.sale.hiddenOutOfStockNotice(hiddenOutOfStockCount)}</span>
+                <button
+                  type="button"
+                  onClick={() => handleToggleHideOutOfStock(false)}
+                  className="text-brand-700 hover:text-brand-800 font-semibold px-2 py-1 min-h-[36px] rounded-lg"
+                >
+                  {UI.sale.showOutOfStockBtn}
+                </button>
+              </div>
+            )}
+
             {!items ? (
               <div className="text-center py-12 text-gray-400">{UI.common.loading}</div>
             ) : filteredItems.length === 0 ? (
@@ -318,6 +427,19 @@ export default function SalePage() {
                       className="px-4 py-2.5 bg-brand-600 hover:bg-brand-700 active:bg-brand-800 text-white font-semibold text-sm rounded-xl min-h-[48px] shadow-sm transition-colors"
                     >
                       {UI.sale.clearSearchBtn}
+                    </button>
+                  </>
+                ) : hiddenOutOfStockCount > 0 ? (
+                  <>
+                    <p className="text-base font-semibold text-gray-700 mb-3">
+                      {UI.sale.hiddenOutOfStockNotice(hiddenOutOfStockCount)}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => handleToggleHideOutOfStock(false)}
+                      className="px-4 py-2.5 bg-brand-600 hover:bg-brand-700 active:bg-brand-800 text-white font-semibold text-sm rounded-xl min-h-[48px] shadow-sm transition-colors"
+                    >
+                      {UI.sale.showOutOfStockBtn}
                     </button>
                   </>
                 ) : selectedCategoryId !== 'ALL' && (items?.length ?? 0) > 0 ? (
