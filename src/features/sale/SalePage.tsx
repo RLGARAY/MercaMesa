@@ -5,6 +5,7 @@ import type { Item, Sale, ID } from '@/types'
 import { UI } from '@/i18n'
 import { formatCents } from '@/domain/money'
 import { classifyStockLevel, DEFAULT_LOW_STOCK_THRESHOLD } from '@/domain/stats'
+import { filterAndSortItems } from '@/domain/saleFilter'
 import { voidSale } from '@/services/saleService'
 import Modal from '@/components/Modal'
 import ItemForm from '@/features/items/ItemForm'
@@ -13,9 +14,11 @@ import { useCart } from '@/features/sale/useCart'
 
 export default function SalePage() {
   const [selectedCategoryId, setSelectedCategoryId] = useState<ID | 'ALL'>('ALL')
+  const [searchQuery, setSearchQuery] = useState('')
   const [isItemModalOpen, setIsItemModalOpen] = useState(false)
   const [editingItem, setEditingItem] = useState<Item | null>(null)
   const [isCartModalOpen, setIsCartModalOpen] = useState(false)
+  const searchInputRef = useRef<HTMLInputElement>(null)
 
   // Toast de confirmación con Deshacer (RF-V6)
   const [lastSale, setLastSale] = useState<Sale | null>(null)
@@ -49,12 +52,16 @@ export default function SalePage() {
     clearCart,
   } = useCart(items)
 
-  // Filtro de artículos por categoría
+  // Filtrado y ordenación puros en dominio (RF-V2, 200 artículos con useMemo)
   const filteredItems = useMemo(() => {
     if (!items) return []
-    if (selectedCategoryId === 'ALL') return items
-    return items.filter(item => item.categoryId === selectedCategoryId)
-  }, [items, selectedCategoryId])
+    return filterAndSortItems(items, {
+      categoryId: selectedCategoryId,
+      query: searchQuery,
+    })
+  }, [items, selectedCategoryId, searchQuery])
+
+  const trimmedQuery = searchQuery.trim()
 
   // Subtotal del carrito
   const cartSubtotalCents = useMemo(() => {
@@ -146,18 +153,80 @@ export default function SalePage() {
       <div className="flex-1 flex overflow-hidden">
         {/* Columna Principal: Catálogo de artículos */}
         <div className="flex-1 flex flex-col h-full overflow-hidden">
-          {/* Cabecera superior fija */}
-          <header className="bg-white border-b border-gray-200 px-4 py-3 shadow-sm shrink-0">
-            <div className="flex items-center justify-between mb-2">
-              <h1 className="text-xl font-bold text-gray-900">{UI.nav.sale}</h1>
+          {/* Cabecera superior fija y barra de herramientas compacta */}
+          <header className="bg-white border-b border-gray-200 px-3 sm:px-4 py-2.5 shadow-sm shrink-0 space-y-2">
+            {/* Fila 1: Título + Buscador + Nuevo artículo */}
+            <div className="flex items-center gap-2">
+              <h1 className="text-lg sm:text-xl font-bold text-gray-900 shrink-0">{UI.nav.sale}</h1>
+
+              {/* Buscador por nombre (RF-V2) */}
+              <div className="relative flex-1 min-w-0">
+                <label htmlFor="sale-search-input" className="sr-only">
+                  {UI.sale.searchAria}
+                </label>
+                <span
+                  className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400 pointer-events-none"
+                  aria-hidden="true"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="w-4 h-4"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                    aria-hidden="true"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M21 21l-4.35-4.35m0 0A7.5 7.5 0 103.5 10.5a7.5 7.5 0 0013.15 6.15z"
+                    />
+                  </svg>
+                </span>
+                <input
+                  ref={searchInputRef}
+                  id="sale-search-input"
+                  type="search"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder={UI.sale.searchPlaceholder}
+                  aria-label={UI.sale.searchAria}
+                  className="w-full min-h-[44px] pl-9 pr-11 py-2 bg-gray-100 focus:bg-white border border-gray-200 focus:border-brand-500 rounded-xl text-base text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-brand-500 transition-colors [&::-webkit-search-cancel-button]:hidden"
+                />
+                {searchQuery.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSearchQuery('')
+                      searchInputRef.current?.focus()
+                    }}
+                    aria-label={UI.sale.clearSearchAria}
+                    className="absolute inset-y-0 right-0 min-w-[44px] min-h-[44px] px-3 flex items-center justify-center text-gray-400 hover:text-gray-700 active:text-gray-900 rounded-r-xl transition-colors"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      className="w-4 h-4"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth={2.5}
+                      aria-hidden="true"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                )}
+              </div>
+
               <button
                 type="button"
                 onClick={handleOpenCreate}
                 aria-label={UI.items.newItem}
-                className="inline-flex items-center gap-1 px-3 py-2 bg-brand-600 hover:bg-brand-700 active:bg-brand-800 text-white text-sm font-semibold rounded-xl shadow-sm transition-colors min-h-[48px]"
+                className="inline-flex items-center justify-center gap-1 px-3 py-2 bg-brand-600 hover:bg-brand-700 active:bg-brand-800 text-white text-xs sm:text-sm font-semibold rounded-xl shadow-sm transition-colors min-h-[44px] min-w-[44px] shrink-0"
               >
-                <span className="text-lg" aria-hidden="true">+</span>
-                <span>{UI.items.newItem}</span>
+                <span className="text-lg leading-none" aria-hidden="true">+</span>
+                <span className="hidden sm:inline">{UI.items.newItem}</span>
               </button>
             </div>
 
@@ -196,13 +265,31 @@ export default function SalePage() {
           </header>
 
           {/* Lista de artículos en filas (RF-V1, RF-V3) */}
-          <div className={`flex-1 overflow-y-auto p-4 space-y-3 ${totalItemsCount > 0 ? 'pb-24 lg:pb-6' : 'pb-6'}`}>
+          <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-3 pb-6">
             {!items ? (
               <div className="text-center py-12 text-gray-400">{UI.common.loading}</div>
-            ) : filteredItems?.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
-                <span className="text-5xl mb-3" aria-hidden="true">🏷️</span>
-                {selectedCategoryId !== 'ALL' && (items?.length ?? 0) > 0 ? (
+            ) : filteredItems.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
+                <span className="text-5xl mb-3" aria-hidden="true">
+                  {trimmedQuery.length > 0 ? '🔍' : '🏷️'}
+                </span>
+                {trimmedQuery.length > 0 ? (
+                  <>
+                    <p className="text-base font-semibold text-gray-800 mb-1">
+                      {UI.sale.noSearchResults(trimmedQuery)}
+                    </p>
+                    <p className="text-sm text-gray-500 mb-4 max-w-xs">
+                      {UI.sale.noSearchResultsHelp}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setSearchQuery('')}
+                      className="px-4 py-2.5 bg-brand-600 hover:bg-brand-700 active:bg-brand-800 text-white font-semibold text-sm rounded-xl min-h-[48px] shadow-sm transition-colors"
+                    >
+                      {UI.sale.clearSearchBtn}
+                    </button>
+                  </>
+                ) : selectedCategoryId !== 'ALL' && (items?.length ?? 0) > 0 ? (
                   <>
                     <p className="text-base font-semibold text-gray-700 mb-1">
                       {UI.sale.noItemsInCategory}
@@ -383,6 +470,34 @@ export default function SalePage() {
               })
             )}
           </div>
+
+          {/* BARRA DE CARRITO INFERIOR EN FLUJO FLEX (Móvil vertical: nunca tapa resultados ni el buscador con teclado abierto, RF-V4, RNF-4) */}
+          {totalItemsCount > 0 && (
+            <div className="lg:hidden shrink-0 px-3 py-2 bg-gray-50/95 border-t border-gray-200 z-20">
+              <button
+                type="button"
+                onClick={() => setIsCartModalOpen(true)}
+                aria-label={UI.sale.viewCartAria(totalItemsCount, formatCents(cartSubtotalCents))}
+                className="w-full max-w-md mx-auto min-h-12 bg-gray-900 hover:bg-black active:scale-[0.99] text-white px-4 py-3 rounded-2xl shadow-lg flex items-center justify-between transition-transform"
+              >
+                <div className="flex items-center gap-3">
+                  <span className="flex items-center justify-center w-7 h-7 rounded-full bg-brand-600 text-white font-bold text-xs">
+                    {totalItemsCount}
+                  </span>
+                  <span className="font-semibold text-sm">
+                    {UI.sale.viewCart}
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-base text-brand-300">
+                    {formatCents(cartSubtotalCents)}
+                  </span>
+                  <span className="text-gray-400" aria-hidden="true">→</span>
+                </div>
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Columna Derecha: Carrito en paralelo para Tablet / Pantalla grande (RNF-4) */}
@@ -410,34 +525,6 @@ export default function SalePage() {
           />
         </aside>
       </div>
-
-      {/* BARRA DE CARRITO FLOTANTE (Solo en móvil vertical, RF-V4, RNF-4) */}
-      {totalItemsCount > 0 && (
-        <div className="lg:hidden fixed bottom-14 left-0 right-0 p-3 z-30 pointer-events-none">
-          <button
-            type="button"
-            onClick={() => setIsCartModalOpen(true)}
-            aria-label={UI.sale.viewCartAria(totalItemsCount, formatCents(cartSubtotalCents))}
-            className="w-full max-w-md mx-auto min-h-14 bg-gray-900 hover:bg-black active:scale-[0.99] text-white p-4 rounded-2xl shadow-2xl flex items-center justify-between pointer-events-auto transition-transform"
-          >
-            <div className="flex items-center gap-3">
-              <span className="flex items-center justify-center w-8 h-8 rounded-full bg-brand-600 text-white font-bold text-xs">
-                {totalItemsCount}
-              </span>
-              <span className="font-semibold text-sm">
-                {UI.sale.viewCart}
-              </span>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <span className="font-bold text-base text-brand-300">
-                {formatCents(cartSubtotalCents)}
-              </span>
-              <span className="text-gray-400" aria-hidden="true">→</span>
-            </div>
-          </button>
-        </div>
-      )}
 
       {/* Modal / Resumen del Carrito para móvil (RF-V5, RF-V6, RF-V7) */}
       <Modal

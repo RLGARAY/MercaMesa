@@ -98,6 +98,12 @@ export const UI = {
     noItemsInCategoryHelp: 'Puedes ver todos los artículos del catálogo o añadir uno nuevo a esta categoría.',
     viewAllCategories: 'Ver todas las categorías',
     addToCategory: '+ Añadir a esta categoría',
+    searchPlaceholder: 'Buscar artículo por nombre…',
+    searchAria: 'Buscar artículo por nombre',
+    clearSearchAria: 'Borrar texto de búsqueda',
+    clearSearchBtn: 'Limpiar búsqueda',
+    noSearchResults: (query: string) => `Ningún artículo coincide con «${query}»`,
+    noSearchResultsHelp: 'Prueba con otras palabras o limpia la búsqueda para ver el catálogo.',
   },
 
   // Artículos (Fase 1)
