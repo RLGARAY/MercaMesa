@@ -1,11 +1,11 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { db, META_KEY } from '@/db/db'
+import { db, META_KEY, setSaleSortPreference } from '@/db/db'
 import type { Item, Sale, ID } from '@/types'
 import { UI } from '@/i18n'
 import { formatCents } from '@/domain/money'
 import { classifyStockLevel, DEFAULT_LOW_STOCK_THRESHOLD } from '@/domain/stats'
-import { filterAndSortItems } from '@/domain/saleFilter'
+import { filterAndSortItems, parseSaleSort, type SaleSortOrder } from '@/domain/saleFilter'
 import { voidSale } from '@/services/saleService'
 import Modal from '@/components/Modal'
 import ItemForm from '@/features/items/ItemForm'
@@ -15,6 +15,7 @@ import { useCart } from '@/features/sale/useCart'
 export default function SalePage() {
   const [selectedCategoryId, setSelectedCategoryId] = useState<ID | 'ALL'>('ALL')
   const [searchQuery, setSearchQuery] = useState('')
+  const [sortOverride, setSortOverride] = useState<SaleSortOrder | null>(null)
   const [isItemModalOpen, setIsItemModalOpen] = useState(false)
   const [editingItem, setEditingItem] = useState<Item | null>(null)
   const [isCartModalOpen, setIsCartModalOpen] = useState(false)
@@ -41,6 +42,13 @@ export default function SalePage() {
     [],
   )
   const lowStockThreshold = meta?.lowStockThreshold ?? DEFAULT_LOW_STOCK_THRESHOLD
+  const currentSort: SaleSortOrder = sortOverride ?? parseSaleSort(meta?.saleSort)
+
+  const handleSortChange = (rawSort: string) => {
+    const nextSort = parseSaleSort(rawSort)
+    setSortOverride(nextSort)
+    void setSaleSortPreference(nextSort)
+  }
 
   // Carrito persistente en localStorage purgado contra artículos activos (Decisión 2, RN-1, C2 #7)
   const {
@@ -58,8 +66,9 @@ export default function SalePage() {
     return filterAndSortItems(items, {
       categoryId: selectedCategoryId,
       query: searchQuery,
+      sort: currentSort,
     })
-  }, [items, selectedCategoryId, searchQuery])
+  }, [items, selectedCategoryId, searchQuery, currentSort])
 
   const trimmedQuery = searchQuery.trim()
 
@@ -230,37 +239,59 @@ export default function SalePage() {
               </button>
             </div>
 
-            {/* Chips de filtro por categoría (RF-V2) */}
-            <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none" role="tablist" aria-label={UI.sale.filterByCategoryAria}>
-              <button
-                type="button"
-                role="tab"
-                aria-selected={selectedCategoryId === 'ALL'}
-                onClick={() => setSelectedCategoryId('ALL')}
-                className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-colors min-h-[36px] ${
-                  selectedCategoryId === 'ALL'
-                    ? 'bg-brand-600 text-white shadow-sm'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                {UI.sale.allCategories}
-              </button>
-              {categories?.map((cat) => (
+            {/* Fila 2: Orden + Chips de filtro por categoría (RF-V2) */}
+            <div className="flex items-center gap-2 overflow-x-auto pb-0.5 scrollbar-none">
+              <div className="shrink-0">
+                <label htmlFor="sale-sort-select" className="sr-only">
+                  {UI.sale.sortByAria}
+                </label>
+                <select
+                  id="sale-sort-select"
+                  aria-label={UI.sale.sortByAria}
+                  value={currentSort}
+                  onChange={(e) => handleSortChange(e.target.value)}
+                  className="min-h-[44px] px-2.5 py-1.5 bg-gray-100 hover:bg-gray-200/80 border border-gray-200 rounded-xl text-xs font-semibold text-gray-800 focus:outline-none focus:ring-2 focus:ring-brand-500 cursor-pointer transition-colors"
+                >
+                  <option value="name-asc">{UI.sale.sortOptions.nameAsc}</option>
+                  <option value="name-desc">{UI.sale.sortOptions.nameDesc}</option>
+                  <option value="stock-asc">{UI.sale.sortOptions.stockAsc}</option>
+                  <option value="stock-desc">{UI.sale.sortOptions.stockDesc}</option>
+                </select>
+              </div>
+
+              <div className="w-px h-5 bg-gray-200 shrink-0" aria-hidden="true" />
+
+              <div className="flex items-center gap-2" role="tablist" aria-label={UI.sale.filterByCategoryAria}>
                 <button
-                  key={cat.id}
                   type="button"
                   role="tab"
-                  aria-selected={selectedCategoryId === cat.id}
-                  onClick={() => setSelectedCategoryId(cat.id)}
+                  aria-selected={selectedCategoryId === 'ALL'}
+                  onClick={() => setSelectedCategoryId('ALL')}
                   className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-colors min-h-[36px] ${
-                    selectedCategoryId === cat.id
+                    selectedCategoryId === 'ALL'
                       ? 'bg-brand-600 text-white shadow-sm'
                       : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                   }`}
                 >
-                  {cat.name}
+                  {UI.sale.allCategories}
                 </button>
-              ))}
+                {categories?.map((cat) => (
+                  <button
+                    key={cat.id}
+                    type="button"
+                    role="tab"
+                    aria-selected={selectedCategoryId === cat.id}
+                    onClick={() => setSelectedCategoryId(cat.id)}
+                    className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-colors min-h-[36px] ${
+                      selectedCategoryId === cat.id
+                        ? 'bg-brand-600 text-white shadow-sm'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    {cat.name}
+                  </button>
+                ))}
+              </div>
             </div>
           </header>
 

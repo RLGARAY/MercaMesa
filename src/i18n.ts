@@ -104,6 +104,13 @@ export const UI = {
     clearSearchBtn: 'Limpiar búsqueda',
     noSearchResults: (query: string) => `Ningún artículo coincide con «${query}»`,
     noSearchResultsHelp: 'Prueba con otras palabras o limpia la búsqueda para ver el catálogo.',
+    sortByAria: 'Ordenar artículos',
+    sortOptions: {
+      nameAsc: 'Nombre A → Z',
+      nameDesc: 'Nombre Z → A',
+      stockAsc: 'Stock: de menos a más',
+      stockDesc: 'Stock: de más a menos',
+    },
   },
 
   // Artículos (Fase 1)
