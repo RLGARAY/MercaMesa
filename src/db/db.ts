@@ -17,7 +17,12 @@ import type {
   Meta,
   LocalBackup,
 } from '@/types'
-import { parseSaleSort, type SaleSortOrder } from '@/domain/saleFilter'
+import {
+  parseSaleSort,
+  parseSaleViewMode,
+  type SaleSortOrder,
+  type SaleViewMode,
+} from '@/domain/saleFilter'
 
 /** Versión actual del esquema. Subir al añadir/cambiar tablas o índices. */
 export const SCHEMA_VERSION = 2
@@ -249,6 +254,29 @@ export async function setHideOutOfStockPreference(
       deviceId: crypto.randomUUID(),
       lastSyncedRevision: 0,
       hideOutOfStock: normalized,
+    })
+  }
+}
+
+/**
+ * Guarda la preferencia de modo de vista (lista / expositor) en `meta` ('main').
+ * No forma parte del archivo de copia de seguridad ni de Drive.
+ */
+export async function setSaleViewModePreference(
+  viewMode: SaleViewMode,
+  dbInstance: MercaMesaDB = db,
+): Promise<void> {
+  const validMode = parseSaleViewMode(viewMode)
+  const existing = await dbInstance.meta.get(META_KEY)
+  if (existing) {
+    await dbInstance.meta.update(META_KEY, { saleViewMode: validMode })
+  } else {
+    await dbInstance.meta.put({
+      id: META_KEY,
+      schemaVersion: SCHEMA_VERSION,
+      deviceId: crypto.randomUUID(),
+      lastSyncedRevision: 0,
+      saleViewMode: validMode,
     })
   }
 }

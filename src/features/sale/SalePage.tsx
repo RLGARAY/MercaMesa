@@ -5,6 +5,7 @@ import {
   META_KEY,
   setSaleSortPreference,
   setHideOutOfStockPreference,
+  setSaleViewModePreference,
 } from '@/db/db'
 import type { Item, Sale, ID } from '@/types'
 import { UI } from '@/i18n'
@@ -15,7 +16,9 @@ import {
   countHiddenOutOfStockItems,
   parseSaleSort,
   parseHideOutOfStock,
+  parseSaleViewMode,
   type SaleSortOrder,
+  type SaleViewMode,
 } from '@/domain/saleFilter'
 import { voidSale } from '@/services/saleService'
 import Modal from '@/components/Modal'
@@ -183,7 +186,7 @@ export default function SalePage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [sortOverride, setSortOverride] = useState<SaleSortOrder | null>(null)
   const [hideOutOfStockOverride, setHideOutOfStockOverride] = useState<boolean | null>(null)
-  const [viewMode] = useState<'list' | 'grid'>('list')
+  const [viewModeOverride, setViewModeOverride] = useState<SaleViewMode | null>(null)
   const [isItemModalOpen, setIsItemModalOpen] = useState(false)
   const [editingItem, setEditingItem] = useState<Item | null>(null)
   const [isCartModalOpen, setIsCartModalOpen] = useState(false)
@@ -213,6 +216,8 @@ export default function SalePage() {
   const currentSort: SaleSortOrder = sortOverride ?? parseSaleSort(meta?.saleSort)
   const hideOutOfStock: boolean =
     hideOutOfStockOverride ?? parseHideOutOfStock(meta?.hideOutOfStock)
+  const viewMode: SaleViewMode =
+    viewModeOverride ?? parseSaleViewMode(meta?.saleViewMode)
 
   const handleSortChange = (rawSort: string) => {
     const nextSort = parseSaleSort(rawSort)
@@ -224,6 +229,12 @@ export default function SalePage() {
     const next = nextValue !== undefined ? nextValue : !hideOutOfStock
     setHideOutOfStockOverride(next)
     void setHideOutOfStockPreference(next)
+  }
+
+  const handleToggleViewMode = () => {
+    const nextMode: SaleViewMode = viewMode === 'grid' ? 'list' : 'grid'
+    setViewModeOverride(nextMode)
+    void setSaleViewModePreference(nextMode)
   }
 
   // Carrito persistente en localStorage purgado contra artículos activos (Decisión 2, RN-1, C2 #7)
@@ -505,6 +516,56 @@ export default function SalePage() {
                 )}
                 <span>
                   {hideOutOfStock ? UI.sale.outOfStockHidden : UI.sale.outOfStockVisible}
+                </span>
+              </button>
+
+              {/* Botón de alternancia Vista lista / Vista expositor (RF-V2, RNF-1) */}
+              <button
+                type="button"
+                aria-pressed={viewMode === 'grid'}
+                aria-label={UI.sale.viewModeToggleAria}
+                onClick={handleToggleViewMode}
+                className={`min-h-[44px] min-w-[44px] px-3.5 py-2 rounded-xl border text-xs font-semibold whitespace-nowrap inline-flex items-center gap-1.5 shrink-0 transition-colors ${
+                  viewMode === 'grid'
+                    ? 'bg-gray-900 text-white border-gray-900 shadow-sm'
+                    : 'bg-gray-100 text-gray-700 border-gray-200 hover:bg-gray-200'
+                }`}
+              >
+                {viewMode === 'grid' ? (
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="w-4 h-4 shrink-0"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                    aria-hidden="true"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M4 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1V5zm10 0a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zM4 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1v-4zm10 0a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z"
+                    />
+                  </svg>
+                ) : (
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="w-4 h-4 shrink-0"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                    aria-hidden="true"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M4 6h16M4 12h16M4 18h16"
+                    />
+                  </svg>
+                )}
+                <span>
+                  {viewMode === 'grid' ? UI.sale.viewModeGrid : UI.sale.viewModeList}
                 </span>
               </button>
 

@@ -619,6 +619,9 @@ async function applyBackupPayload(
         ...(prevMeta?.hideOutOfStock !== undefined
           ? { hideOutOfStock: prevMeta.hideOutOfStock }
           : {}),
+        ...(prevMeta?.saleViewMode !== undefined
+          ? { saleViewMode: prevMeta.saleViewMode }
+          : {}),
       })
     },
   )

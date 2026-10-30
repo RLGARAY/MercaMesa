@@ -225,6 +225,9 @@ export async function applyDriveRestore(
         ...(prevMeta?.hideOutOfStock !== undefined
           ? { hideOutOfStock: prevMeta.hideOutOfStock }
           : {}),
+        ...(prevMeta?.saleViewMode !== undefined
+          ? { saleViewMode: prevMeta.saleViewMode }
+          : {}),
       })
     },
   )

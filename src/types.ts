@@ -74,6 +74,7 @@ export interface Meta {
   lowStockThreshold?: number // Umbral local de aviso de poco stock (por defecto 2, RF-E7)
   saleSort?: 'name-asc' | 'name-desc' | 'stock-asc' | 'stock-desc' // Preferencia local de orden en venta
   hideOutOfStock?: boolean  // Preferencia local para ocultar artículos sin stock en venta
+  saleViewMode?: 'list' | 'grid' // Preferencia local de vista en venta ('list' por defecto)
 }
 
 /** Copia de seguridad local guardada antes de importar/restaurar (SPEC sección 7) */

@@ -17,7 +17,11 @@ import type { ID, Item } from '@/types'
 
 export type SaleSortOrder = 'name-asc' | 'name-desc' | 'stock-asc' | 'stock-desc'
 
+export type SaleViewMode = 'list' | 'grid'
+
 export const DEFAULT_SALE_SORT: SaleSortOrder = 'name-asc'
+
+export const DEFAULT_SALE_VIEW_MODE: SaleViewMode = 'list'
 
 export const SALE_SORT_OPTIONS: readonly SaleSortOrder[] = [
   'name-asc',
@@ -25,6 +29,8 @@ export const SALE_SORT_OPTIONS: readonly SaleSortOrder[] = [
   'stock-asc',
   'stock-desc',
 ] as const
+
+export const SALE_VIEW_MODES: readonly SaleViewMode[] = ['list', 'grid'] as const
 
 export interface FilterAndSortOptions {
   /** ID de categoría seleccionada, o 'ALL' / undefined para todas */
@@ -63,6 +69,24 @@ export function parseSaleSort(value: unknown): SaleSortOrder {
  */
 export function parseHideOutOfStock(value: unknown): boolean {
   return value === true
+}
+
+/**
+ * Comprueba si un valor desconocido es un modo de vista válido ('list' | 'grid').
+ */
+export function isValidSaleViewMode(value: unknown): value is SaleViewMode {
+  return (
+    typeof value === 'string' &&
+    (SALE_VIEW_MODES as readonly string[]).includes(value)
+  )
+}
+
+/**
+ * Normaliza un valor de preferencia de modo de vista; si no existe o no es válido,
+ * devuelve el modo por defecto ('list').
+ */
+export function parseSaleViewMode(value: unknown): SaleViewMode {
+  return isValidSaleViewMode(value) ? value : DEFAULT_SALE_VIEW_MODE
 }
 
 /**
