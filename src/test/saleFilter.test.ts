@@ -6,8 +6,13 @@ import {
   countHiddenOutOfStockItems,
   parseSaleSort,
   parseHideOutOfStock,
+  parseSaleViewMode,
   isValidSaleSort,
+  isValidSaleViewMode,
   DEFAULT_SALE_SORT,
+  DEFAULT_SALE_VIEW_MODE,
+  getItemInitial,
+  getItemPlaceholderToneIndex,
 } from '@/domain/saleFilter'
 
 function makeItem(overrides: Partial<Item> & Pick<Item, 'id' | 'name'>): Item {
@@ -61,6 +66,30 @@ describe('parseSaleSort y parseHideOutOfStock', () => {
     expect(parseHideOutOfStock(false)).toBe(false)
     expect(parseHideOutOfStock('true')).toBe(false)
     expect(parseHideOutOfStock(true)).toBe(true)
+  })
+
+  it('usa "list" por defecto para saleViewMode cuando no hay valor o es inválido, y reconoce "list" y "grid"', () => {
+    expect(DEFAULT_SALE_VIEW_MODE).toBe('list')
+    expect(parseSaleViewMode(undefined)).toBe('list')
+    expect(parseSaleViewMode(null)).toBe('list')
+    expect(parseSaleViewMode('')).toBe('list')
+    expect(parseSaleViewMode('invalid-mode')).toBe('list')
+    expect(parseSaleViewMode(123)).toBe('list')
+    expect(isValidSaleViewMode('invalid-mode')).toBe(false)
+    expect(isValidSaleViewMode('list')).toBe(true)
+    expect(isValidSaleViewMode('grid')).toBe(true)
+    expect(parseSaleViewMode('list')).toBe('list')
+    expect(parseSaleViewMode('grid')).toBe('grid')
+  })
+
+  it('calcula la inicial en mayúscula y el índice de color del marcador sin imagen', () => {
+    expect(getItemInitial('  pendientes aro ')).toBe('P')
+    expect(getItemInitial('árbol de la vida')).toBe('Á')
+    expect(getItemInitial('   ')).toBe('?')
+    const idx = getItemPlaceholderToneIndex('cat-1:Pendientes', 6)
+    expect(idx).toBeGreaterThanOrEqual(0)
+    expect(idx).toBeLessThan(6)
+    expect(getItemPlaceholderToneIndex('cat-1:Pendientes', 6)).toBe(idx)
   })
 })
 

@@ -6,6 +6,7 @@ import {
   setLowStockThreshold,
   setSaleSortPreference,
   setHideOutOfStockPreference,
+  setSaleViewModePreference,
   META_KEY,
 } from '@/db/db'
 import {
@@ -607,23 +608,27 @@ describe('backupService (RF-C6, RF-C7, RF-C11)', () => {
       expect(metaAfter?.lowStockThreshold).toBe(4)
     })
 
-    it('guarda saleSort y hideOutOfStock en meta ("main"), no los incluye en la copia de seguridad y los preserva al importar', async () => {
+    it('guarda saleSort, hideOutOfStock y saleViewMode en meta ("main"), no los incluye en la copia de seguridad y los preserva al importar', async () => {
       await setSaleSortPreference('stock-desc', testDb)
       await setHideOutOfStockPreference(true, testDb)
+      await setSaleViewModePreference('grid', testDb)
 
       const metaBefore = await testDb.meta.get(META_KEY)
       expect(metaBefore?.saleSort).toBe('stock-desc')
       expect(metaBefore?.hideOutOfStock).toBe(true)
+      expect(metaBefore?.saleViewMode).toBe('grid')
 
       const exported = await createBackupPayload(testDb)
       const exportedRecord = exported as unknown as Record<string, unknown>
       expect('saleSort' in exportedRecord).toBe(false)
       expect('hideOutOfStock' in exportedRecord).toBe(false)
+      expect('saleViewMode' in exportedRecord).toBe(false)
 
       await importBackupPayload(exported, testDb)
       const metaAfter = await testDb.meta.get(META_KEY)
       expect(metaAfter?.saleSort).toBe('stock-desc')
       expect(metaAfter?.hideOutOfStock).toBe(true)
+      expect(metaAfter?.saleViewMode).toBe('grid')
     })
 
     it('elimina las copias más antiguas al superar 3 y permite continuar con skipPreBackup si localBackups falla por cuota (E4)', async () => {
