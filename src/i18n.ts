@@ -117,6 +117,12 @@ export const UI = {
     hiddenOutOfStockNotice: (count: number) =>
       count === 1 ? '1 artículo sin stock oculto' : `${count} artículos sin stock ocultos`,
     showOutOfStockBtn: 'Mostrar sin stock',
+    viewModeToggleAria: 'Alternar entre vista lista y vista expositor',
+    viewModeList: 'Vista lista',
+    viewModeGrid: 'Vista expositor',
+    exhaustedBadge: 'Agotado',
+    addUnitAria: (name: string) => `Añadir una unidad de ${name}`,
+    removeUnitAria: (name: string) => `Quitar una unidad de ${name}`,
   },
 
   // Artículos (Fase 1)
