@@ -90,6 +90,30 @@ export function parseSaleViewMode(value: unknown): SaleViewMode {
 }
 
 /**
+ * Extrae la inicial en mayúscula del nombre de un artículo para el marcador sin imagen.
+ * Si el nombre está vacío, devuelve '?'.
+ */
+export function getItemInitial(name: string): string {
+  const trimmed = name.trim()
+  if (trimmed.length === 0) return '?'
+  const firstCodePoint = Array.from(trimmed)[0] ?? '?'
+  return firstCodePoint.toLocaleUpperCase('es-ES')
+}
+
+/**
+ * Calcula de forma determinista un índice de paleta (0..paletteSize-1) a partir
+ * de una semilla (categoría o nombre del artículo) para colorear el marcador sin imagen.
+ */
+export function getItemPlaceholderToneIndex(seed: string, paletteSize: number): number {
+  if (paletteSize <= 1) return 0
+  let hash = 0
+  for (let i = 0; i < seed.length; i++) {
+    hash = (hash * 31 + seed.charCodeAt(i)) | 0
+  }
+  return Math.abs(hash) % paletteSize
+}
+
+/**
  * Normaliza un texto para búsqueda:
  * - Elimina espacios al principio y al final.
  * - Descompone caracteres con `normalize('NFD')` y elimina los signos diacríticos.
