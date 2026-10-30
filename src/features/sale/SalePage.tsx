@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from 'react'
+import { useState, useEffect, useRef, useMemo, useCallback, memo } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import {
   db,
@@ -21,13 +21,169 @@ import { voidSale } from '@/services/saleService'
 import Modal from '@/components/Modal'
 import ItemForm from '@/features/items/ItemForm'
 import CartDrawer from '@/features/sale/CartDrawer'
+import ItemCard from '@/features/sale/ItemCard'
 import { useCart } from '@/features/sale/useCart'
+
+interface ItemRowProps {
+  item: Item
+  categoryName: string
+  quantity: number
+  lowStockThreshold: number
+  onAdd: (itemId: ID) => void
+  onRemove: (itemId: ID) => void
+  onEdit: (item: Item) => void
+}
+
+const ItemRow = memo(function ItemRow({
+  item,
+  categoryName,
+  quantity,
+  lowStockThreshold,
+  onAdd,
+  onRemove,
+  onEdit,
+}: ItemRowProps) {
+  const stockLevel = classifyStockLevel(item.stock, lowStockThreshold)
+  const exceedsStock = quantity > item.stock // RF-V8, RN-3
+
+  return (
+    <div
+      className={`flex items-center justify-between p-3 bg-white rounded-xl border transition-all ${
+        quantity > 0
+          ? 'border-brand-400 ring-1 ring-brand-300 shadow-sm'
+          : 'border-gray-200 shadow-sm'
+      }`}
+    >
+      {/* Imagen + Datos */}
+      <div className="flex items-center gap-3 min-w-0 flex-1">
+        <div className="w-14 h-14 rounded-lg bg-gray-100 overflow-hidden flex items-center justify-center shrink-0 border border-gray-100">
+          {item.imageThumb ? (
+            <img
+              src={item.imageThumb}
+              alt={item.name}
+              loading="lazy"
+              decoding="async"
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <span className="text-xl text-gray-400" aria-hidden="true">🖼️</span>
+          )}
+        </div>
+
+        <div className="min-w-0 flex-1 pr-2">
+          <div className="flex items-center gap-1">
+            <h3 className="font-semibold text-gray-900 truncate text-sm sm:text-base">
+              {item.name}
+            </h3>
+            {/* Botón rápido editar (zona táctil >= 44x44px con padding, RNF-1) */}
+            <button
+              type="button"
+              onClick={() => onEdit(item)}
+              aria-label={UI.items.editItemAria(item.name)}
+              className="text-gray-400 hover:text-gray-600 active:bg-gray-200/70 p-2.5 -my-1.5 min-w-[44px] min-h-[44px] shrink-0 flex items-center justify-center rounded-xl hover:bg-gray-100 transition-colors"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="w-4 h-4"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+                aria-hidden="true"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+                />
+              </svg>
+            </button>
+          </div>
+
+          <p className="text-xs text-gray-500 truncate">
+            {categoryName}
+          </p>
+
+          <div className="flex items-center flex-wrap gap-1.5 mt-1">
+            <span className="font-bold text-brand-700 text-sm">
+              {formatCents(item.priceCents)}
+            </span>
+
+            {/* Chips de stock (RF-E7, C1: colores y textos distintos para bajo, cero y negativo) */}
+            {stockLevel === 'low' && (
+              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-100 text-amber-900 border border-amber-300">
+                {item.stock === 1 ? `${UI.sale.lastUnit} (1)` : UI.sale.lowStockBadge(item.stock)}
+              </span>
+            )}
+            {stockLevel === 'zero' && (
+              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-gray-200 text-gray-800 border border-gray-300">
+                {UI.sale.outOfStock} (0)
+              </span>
+            )}
+            {stockLevel === 'negative' && (
+              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-800 border border-red-300">
+                {UI.sale.negativeStockBadge(item.stock)}
+              </span>
+            )}
+            {stockLevel === 'ok' && (
+              <span className="text-xs text-gray-400">
+                {UI.sale.stockLabel(item.stock)}
+              </span>
+            )}
+
+            {/* Aviso si la cantidad en carrito supera el stock (RF-V8, RN-3) */}
+            {exceedsStock && (
+              <span className="text-[10px] font-bold text-amber-800 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
+                {UI.sale.stockWarning}
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Controles táctiles − / + grandes con separación para evitar toques equivocados (RF-V1, RF-V3, RNF-1) */}
+      <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+        <button
+          type="button"
+          onClick={() => onRemove(item.id)}
+          disabled={quantity === 0}
+          aria-label={`${UI.common.remove} 1 ${item.name}`}
+          className={`w-12 h-12 min-w-[48px] min-h-[48px] flex items-center justify-center rounded-xl font-bold text-xl transition-colors ${
+            quantity > 0
+              ? 'bg-gray-100 text-gray-800 hover:bg-gray-200 active:bg-gray-300'
+              : 'bg-gray-50 text-gray-300 cursor-not-allowed'
+          }`}
+        >
+          −
+        </button>
+
+        <div className="min-w-[2rem] px-1 flex items-center justify-center font-bold text-base text-gray-900">
+          {quantity > 0 ? (
+            <span className="text-brand-600 font-extrabold">{quantity}</span>
+          ) : (
+            <span className="text-gray-300">0</span>
+          )}
+        </div>
+
+        <button
+          type="button"
+          onClick={() => onAdd(item.id)}
+          aria-label={`${UI.common.add} 1 ${item.name}`}
+          className="w-12 h-12 min-w-[48px] min-h-[48px] flex items-center justify-center bg-brand-600 hover:bg-brand-700 active:bg-brand-800 text-white rounded-xl font-bold text-xl shadow-sm transition-colors"
+        >
+          +
+        </button>
+      </div>
+    </div>
+  )
+})
 
 export default function SalePage() {
   const [selectedCategoryId, setSelectedCategoryId] = useState<ID | 'ALL'>('ALL')
   const [searchQuery, setSearchQuery] = useState('')
   const [sortOverride, setSortOverride] = useState<SaleSortOrder | null>(null)
   const [hideOutOfStockOverride, setHideOutOfStockOverride] = useState<boolean | null>(null)
+  const [viewMode] = useState<'list' | 'grid'>('list')
   const [isItemModalOpen, setIsItemModalOpen] = useState(false)
   const [editingItem, setEditingItem] = useState<Item | null>(null)
   const [isCartModalOpen, setIsCartModalOpen] = useState(false)
@@ -165,10 +321,10 @@ export default function SalePage() {
     setIsItemModalOpen(true)
   }
 
-  const handleOpenEdit = (item: Item) => {
+  const handleOpenEdit = useCallback((item: Item) => {
     setEditingItem(item)
     setIsItemModalOpen(true)
-  }
+  }, [])
 
   const handleCloseItemModal = () => {
     setIsItemModalOpen(false)
@@ -388,8 +544,8 @@ export default function SalePage() {
             </div>
           </header>
 
-          {/* Lista de artículos en filas (RF-V1, RF-V3) */}
-          <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-3 pb-6">
+          {/* Catálogo de artículos en vista lista o vista expositor (RF-V1, RF-V3) */}
+          <div className="flex-1 min-h-0 overflow-y-auto p-3 sm:p-4 space-y-3 pb-8">
             {hiddenOutOfStockCount > 0 && (filteredItems.length > 0 || trimmedQuery.length > 0) && (
               <div
                 role="status"
@@ -485,142 +641,38 @@ export default function SalePage() {
                   </>
                 )}
               </div>
-            ) : (
-              filteredItems?.map((item) => {
-                const qty = getQuantity(item.id)
-                const stockLevel = classifyStockLevel(item.stock, lowStockThreshold)
-                const exceedsStock = qty > item.stock // RF-V8, RN-3
-
-                return (
-                  <div
+            ) : viewMode === 'grid' ? (
+              <div
+                data-testid="sale-items-grid"
+                className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-2.5 sm:gap-3 pb-4"
+              >
+                {filteredItems.map((item, index) => (
+                  <ItemCard
                     key={item.id}
-                    className={`flex items-center justify-between p-3 bg-white rounded-xl border transition-all ${
-                      qty > 0
-                        ? 'border-brand-400 ring-1 ring-brand-300 shadow-sm'
-                        : 'border-gray-200 shadow-sm'
-                    }`}
-                  >
-                    {/* Imagen + Datos */}
-                    <div className="flex items-center gap-3 min-w-0 flex-1">
-                      <div className="w-14 h-14 rounded-lg bg-gray-100 overflow-hidden flex items-center justify-center shrink-0 border border-gray-100">
-                        {item.imageThumb ? (
-                          <img
-                            src={item.imageThumb}
-                            alt={item.name}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <span className="text-xl text-gray-400" aria-hidden="true">🖼️</span>
-                        )}
-                      </div>
-
-                      <div className="min-w-0 flex-1 pr-2">
-                        <div className="flex items-center gap-1">
-                          <h3 className="font-semibold text-gray-900 truncate text-sm sm:text-base">
-                            {item.name}
-                          </h3>
-                          {/* Botón rápido editar (zona táctil >= 44x44px con padding, RNF-1) */}
-                          <button
-                            type="button"
-                            onClick={() => handleOpenEdit(item)}
-                            aria-label={UI.items.editItemAria(item.name)}
-                            className="text-gray-400 hover:text-gray-600 active:bg-gray-200/70 p-2.5 -my-1.5 min-w-[44px] min-h-[44px] shrink-0 flex items-center justify-center rounded-xl hover:bg-gray-100 transition-colors"
-                          >
-                            <svg
-                              xmlns="http://www.w3.org/2000/svg"
-                              className="w-4 h-4"
-                              fill="none"
-                              viewBox="0 0 24 24"
-                              stroke="currentColor"
-                              strokeWidth={2}
-                              aria-hidden="true"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
-                              />
-                            </svg>
-                          </button>
-                        </div>
-
-                        <p className="text-xs text-gray-500 truncate">
-                          {getCategoryName(item.categoryId)}
-                        </p>
-
-                        <div className="flex items-center flex-wrap gap-1.5 mt-1">
-                          <span className="font-bold text-brand-700 text-sm">
-                            {formatCents(item.priceCents)}
-                          </span>
-
-                          {/* Chips de stock (RF-E7, C1: colores y textos distintos para bajo, cero y negativo) */}
-                          {stockLevel === 'low' && (
-                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-100 text-amber-900 border border-amber-300">
-                              {item.stock === 1 ? `${UI.sale.lastUnit} (1)` : UI.sale.lowStockBadge(item.stock)}
-                            </span>
-                          )}
-                          {stockLevel === 'zero' && (
-                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-gray-200 text-gray-800 border border-gray-300">
-                              {UI.sale.outOfStock} (0)
-                            </span>
-                          )}
-                          {stockLevel === 'negative' && (
-                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-800 border border-red-300">
-                              {UI.sale.negativeStockBadge(item.stock)}
-                            </span>
-                          )}
-                          {stockLevel === 'ok' && (
-                            <span className="text-xs text-gray-400">
-                              {UI.sale.stockLabel(item.stock)}
-                            </span>
-                          )}
-
-                          {/* Aviso si la cantidad en carrito supera el stock (RF-V8, RN-3) */}
-                          {exceedsStock && (
-                            <span className="text-[10px] font-bold text-amber-800 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
-                              {UI.sale.stockWarning}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Controles táctiles − / + grandes con separación para evitar toques equivocados (RF-V1, RF-V3, RNF-1) */}
-                    <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-                      <button
-                        type="button"
-                        onClick={() => removeFromCart(item.id)}
-                        disabled={qty === 0}
-                        aria-label={`${UI.common.remove} 1 ${item.name}`}
-                        className={`w-12 h-12 min-w-[48px] min-h-[48px] flex items-center justify-center rounded-xl font-bold text-xl transition-colors ${
-                          qty > 0
-                            ? 'bg-gray-100 text-gray-800 hover:bg-gray-200 active:bg-gray-300'
-                            : 'bg-gray-50 text-gray-300 cursor-not-allowed'
-                        }`}
-                      >
-                        −
-                      </button>
-
-                      <div className="min-w-[2rem] px-1 flex items-center justify-center font-bold text-base text-gray-900">
-                        {qty > 0 ? (
-                          <span className="text-brand-600 font-extrabold">{qty}</span>
-                        ) : (
-                          <span className="text-gray-300">0</span>
-                        )}
-                      </div>
-
-                      <button
-                        type="button"
-                        onClick={() => addToCart(item.id)}
-                        aria-label={`${UI.common.add} 1 ${item.name}`}
-                        className="w-12 h-12 min-w-[48px] min-h-[48px] flex items-center justify-center bg-brand-600 hover:bg-brand-700 active:bg-brand-800 text-white rounded-xl font-bold text-xl shadow-sm transition-colors"
-                      >
-                        +
-                      </button>
-                    </div>
-                  </div>
-                )
-              })
+                    item={item}
+                    quantity={getQuantity(item.id)}
+                    lowStockThreshold={lowStockThreshold}
+                    onAdd={addToCart}
+                    onRemove={removeFromCart}
+                    deferRendering={index >= 12}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div data-testid="sale-items-list" className="space-y-3 pb-4">
+                {filteredItems.map((item) => (
+                  <ItemRow
+                    key={item.id}
+                    item={item}
+                    categoryName={getCategoryName(item.categoryId)}
+                    quantity={getQuantity(item.id)}
+                    lowStockThreshold={lowStockThreshold}
+                    onAdd={addToCart}
+                    onRemove={removeFromCart}
+                    onEdit={handleOpenEdit}
+                  />
+                ))}
+              </div>
             )}
           </div>
 
