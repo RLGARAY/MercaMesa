@@ -319,8 +319,26 @@ Se refuerzan los anillos de foco visibles (`focus-visible:ring-2 focus-visible:r
 
 ---
 
+### 2026-10-30 — Modo de vista "Expositor" en la pantalla de venta (RF-V1, RF-V2, RNF-1, RNF-2, RNF-6)
+
+**Decisión:**
+1. **Alternancia y preferencia local (`meta.saleViewMode`):** Se añade en la barra de herramientas de `SalePage` un botón de alternancia (`Vista lista` / `Vista expositor`) con icono dinámico (filas / cuadrícula), texto visible, `aria-label` y `aria-pressed`. La preferencia se guarda en `db.meta` (`'main'`, campo `saleViewMode: 'list' | 'grid'`) sin cambiar `SCHEMA_VERSION`, se excluye de las copias de seguridad JSON y de Google Drive, y se preserva al importar o restaurar copias. Si no existe o contiene un valor inválido, `parseSaleViewMode` devuelve `'list'`.
+2. **Diseño de tarjeta (`ItemCard`) y cuadrícula (`CSS Grid`):**
+   - La cuadrícula usa `grid-template-columns: repeat(auto-fill, minmax(140px, 1fr))` con `gap-2.5 sm:gap-3` y relleno inferior (`pb-8`), adaptándose al ancho del contenedor (2 columnas en móvil vertical estrecho de 360 px y 4 o más columnas en tablet/horizontal, incluso con el carrito en paralelo abierto).
+   - Cada tarjeta tiene `aspect-ratio: 1 / 1` (`aspect-square`) con una zona superior de imagen (`min-h-[88px]`) y una franja inferior interactiva con botones `−` y `+` de `48 px` de alto (`h-12 min-h-[48px] flex-1`) separados por el contador de unidades. Si en un contenedor muy estrecho ambas restricciones compiten, prevalece la altura mínima de los botones y la tarjeta crece verticalmente sin recortar controles.
+   - Tocar la imagen o el cuerpo de la tarjeta no realiza ninguna acción (`pointer-events-none` en las capas visuales); únicamente los botones `−` y `+` modifican el carrito, evitando toques accidentales al hacer scroll.
+3. **Contraste, estados y marcador sin foto:**
+   - El nombre (truncado a 2 líneas con `-webkit-line-clamp: 2` / `line-clamp: 2`) y el precio se muestran sobre fondos oscuros semitransparentes (`bg-gray-950/80` y `bg-gray-950/85`) con texto blanco, garantizando un contraste > 11:1 tanto sobre fotos claras como oscuras.
+   - Los artículos sin `imageThumb` muestran un marcador determinista (inicial en mayúscula `getItemInitial` sobre una paleta de degradados suaves derivada de `categoryId` y `name` mediante `getItemPlaceholderToneIndex`).
+   - Estados no dependientes solo del color: borde doble y anillo en artículos dentro del carrito (`border-2 border-brand-500 ring-2`); imagen atenuada/escala de grises y etiqueta `⊘ Agotado` cuando `stock <= 0` (manteniendo el aviso RN-3 si se añade al carrito); e indicador discreto `⚠ N` cuando `1 <= stock <= lowStockThreshold`.
+4. **Rendimiento con 200 artículos:** Se envuelven `ItemCard` e `ItemRow` en `React.memo` pasando los manejadores estables `addToCart` y `removeFromCart` (`useCallback`), se añade `loading="lazy"` y `decoding="async"` a las imágenes, y se aplica `content-visibility: auto` con `contain-intrinsic-size: auto none auto 180px` (`.sale-card-deferred`) a las tarjetas situadas bajo el pliegue inicial (`index >= 12`).
+5. **Limitación observada en miniaturas (256 px):** Las imágenes actuales se guardan a un máximo de 256 px (`JPEG 0.7`). En tarjetas grandes de tablet con pantallas de alta densidad (`2x`/`3x` DPR), una miniatura de 256 px estirada a ~180–220 px CSS puede apreciarse ligeramente suave o pixelada. Se mantiene intacto el guardado actual por restricción de alcance y se propone valorar en el futuro subir el lado máximo a 384–512 px (o WebP) para fotos nuevas.
+
+---
+
 ## Ideas fuera de alcance (SPEC sección 13)
 
+- **Selector de tamaño de tarjeta / densidad en vista expositor:** permitir elegir entre tarjetas compactas, medianas o grandes según el tipo de producto o tamaño de tablet.
 - **Precio de coste y beneficio:** interesante para saber el margen por artículo. Requiere modelo de datos adicional.
 - **Exportación CSV/Excel:** útil para análisis externo. Puede añadirse en Fase 5 si hay tiempo.
 - **Tema oscuro:** deseable para uso nocturno. Fase 8 si hay tiempo.

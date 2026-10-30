@@ -116,6 +116,7 @@ interface Meta {              // una sola fila (clave primaria fija 'main')
   lowStockThreshold?: number; // preferencia local del dispositivo para aviso de poco stock (por defecto 2)
   saleSort?: 'name-asc' | 'name-desc' | 'stock-asc' | 'stock-desc'; // preferencia local de orden en pantalla de venta (por defecto 'name-asc')
   hideOutOfStock?: boolean;   // preferencia local para ocultar artículos sin stock en pantalla de venta (por defecto false)
+  saleViewMode?: 'list' | 'grid'; // preferencia local de modo de vista en pantalla de venta (por defecto 'list')
 }
 ```
 
@@ -154,13 +155,16 @@ La app tiene **navegación inferior con 3 pestañas**: **Venta**, **Estadística
 
 ### 6.1 Pestaña Venta (pantalla principal)
 
-- **RF-V1** Lista de artículos activos en **filas**: imagen (miniatura), nombre, precio, stock actual, y botones **− / +** grandes. El número de unidades en el carrito se ve entre los botones.
-- **RF-V2** **Barra de herramientas de filtrado y orden** en la parte superior:
+- **RF-V1** Catálogo de artículos activos en dos modos de visualización alternables que comparten el mismo estado y manejadores del carrito:
+  - **Vista lista** (por defecto): artículos en **filas** con imagen (miniatura), nombre, categoría, botón de edición rápida, precio, stock actual y botones **− / +** grandes con el número de unidades en el carrito entre ellos.
+  - **Vista expositor**: cuadrícula responsiva (`CSS Grid` con `repeat(auto-fill, minmax(140px, 1fr))`) de **tarjetas cuadradas** (`aspect-ratio: 1 / 1`, priorizando el alto táctil ≥ 48 px de los botones si el ancho es muy estrecho). Cada tarjeta (`role="group"` con el nombre del artículo) muestra: (1) la imagen ocupando la mayor parte (`object-fit: cover`, `loading="lazy"`, `decoding="async"`) o un marcador atractivo con la inicial sobre un color derivado de categoría/nombre cuando no hay foto; (2) superpuestos sobre la imagen con fondo oscuro semitransparente de alto contraste, el **nombre** (máximo 2 líneas con elipsis) y una etiqueta con el **precio**; (3) estados visuales accesibles (con icono/texto además de color) para artículo en carrito (borde y cantidad resaltada), agotado (`stock ≤ 0`, imagen atenuada y etiqueta "Agotado" + aviso RN-3 si se añade al carrito) y stock bajo (marca discreta según `lowStockThreshold`); y (4) una **franja inferior** con únicamente los botones **− y +** (`min-h-[48px]`, ocupando todo el ancho con separación suficiente y `aria-label` "Quitar/Añadir una unidad de X") y la cantidad entre ambos. Tocar la imagen o el resto de la tarjeta fuera de los botones no añade nada al carrito.
+- **RF-V2** **Barra de herramientas de filtrado, orden y vista** en la parte superior:
   - **Buscador por nombre** (requisito): coincidencia parcial en cualquier parte del nombre, sin distinguir mayúsculas ni acentos (`normalize('NFD')` eliminando diacríticos) e ignorando espacios al principio y al final, con botón para borrar el texto y estado vacío claro cuando no hay resultados. El texto de búsqueda no se guarda entre sesiones.
   - **Chips de categoría** con scroll horizontal (con opción "Todas").
   - **Selector compacto de orden**: *Nombre A → Z* (`'name-asc'`, valor por defecto), *Nombre Z → A* (`'name-desc'`), *Stock: de menos a más* (`'stock-asc'`) y *Stock: de más a menos* (`'stock-desc'`). Comparación en español sin distinguir mayúsculas ni acentos y con orden numérico natural (`localeCompare('es', { sensitivity: 'base', numeric: true })`), desempatando por *Nombre A → Z* cuando coincide el stock. Se recuerda entre sesiones como preferencia local del dispositivo (`meta.saleSort`, excluida de copias de seguridad y Drive).
   - **Interruptor de artículos sin stock**: muestra todos por defecto (`false`) y, al activarse (`true`), oculta los artículos con `stock ≤ 0` **salvo los que ya estén en el carrito** (para que el usuario pueda seguir restando unidades), mostrando una indicación discreta del nº de artículos sin stock ocultos. Expone su estado mediante icono, texto ("Sin stock: visibles / ocultos"), `aria-pressed` y `aria-label`, y se recuerda como preferencia local del dispositivo (`meta.hideOutOfStock`).
-  - **Reglas de combinación**: la lista visible se calcula mediante una única función pura en `src/domain` (`filterAndSortItems`) aplicando en este orden: (1) excluir artículos archivados, (2) filtro por categoría, (3) buscador por nombre, (4) filtro de ocultar sin stock (con excepción de artículos en el carrito), y (5) orden elegido. Cambiar filtros u orden nunca modifica el carrito ni el stock.
+  - **Botón de alternancia Vista lista / Vista expositor**: botón compacto (`≥ 44–48 px`) junto al selector de orden y al interruptor de sin stock que alterna entre `'list'` (**Vista lista**, valor por defecto si no existe o es inválido) y `'grid'` (**Vista expositor**). Indica el modo activo con icono diferenciador (lista / cuadrícula), texto visible, `aria-label` descriptiva y `aria-pressed`. Se recuerda entre sesiones como preferencia local del dispositivo (`meta.saleViewMode`, excluida de copias de seguridad y Drive).
+  - **Reglas de combinación**: ambas vistas muestran exactamente la misma lista calculada mediante la función pura `filterAndSortItems` en `src/domain` aplicando en este orden: (1) excluir artículos archivados, (2) filtro por categoría, (3) buscador por nombre, (4) filtro de ocultar sin stock (con excepción de artículos en el carrito), y (5) orden elegido. Cambiar de vista, filtros u orden nunca modifica el carrito, la búsqueda ni el stock.
 - **RF-V3** El botón **+** añade una unidad al **carrito**; **−** la quita (mínimo 0). **No** modifica el stock hasta cobrar.
 - **RF-V4** **Barra de carrito** fija abajo: nº de artículos y **subtotal**. Al tocarla se abre el **resumen del carrito**.
 - **RF-V5** Resumen del carrito: líneas (nombre, cantidad, importe), subtotal, check **"Oferta / descuento"**.
@@ -318,8 +322,8 @@ Cada fase se entrega **funcionando, probada y commiteada** antes de empezar la s
 - ✅ RF-A1…A5, RN-7, RN-8, RN-9 cumplidos; datos persisten al recargar.
 
 **Fase 2 — Venta con carrito y descuento**
-- Pantalla de venta, filtros, carrito, descuento (3 modos), cobrar, deshacer, aviso de stock.
-- ✅ RF-V1…V9, RN-1…RN-5; tests de `discount.ts` y de cobrar en verde.
+- Pantalla de venta (vista lista y vista expositor alternables), filtros, búsqueda, orden, carrito, descuento (3 modos), cobrar, deshacer, aviso de stock.
+- ✅ RF-V1…V9, RN-1…RN-5; tests de `discount.ts`, `saleFilter.ts`, `SalePage` y de cobrar en verde.
 
 **Fase 3 — Corrección y anulación**
 - Pestaña Ajustes: corregir stock, historial de ajustes, lista/detalle/anulación de ventas, `verifyStockConsistency`.
